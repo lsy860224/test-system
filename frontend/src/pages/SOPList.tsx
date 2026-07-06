@@ -2,43 +2,29 @@ import { useEffect, useState } from 'react'
 import { sopApi, type SOPItem, SOP_CATEGORIES, SOP_STATUSES, SOP_STATUS_COLORS } from '@/api/sop'
 import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
-import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
+import { toggleSort } from '@/utils/sort'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
 import SOPForm from '@/pages/SOPForm'
 
-const FETCH_SIZE = 1000
-
 export default function SOPList() {
-  const [items, setItems] = useState<SOPItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { items, total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<SOPItem>({ key: 'sop_number', dir: 'asc' })
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'sop_number', dir: 'asc' })
   const [formId, setFormId] = useState<number | null | undefined>(undefined)
 
-  const PAGE_SIZE = 20
-
-  const load = () => {
-    setLoading(true)
-    sopApi.list({
-      size: FETCH_SIZE,
-      search: search || undefined,
-      category: filterCategory || undefined,
-      status: filterStatus || undefined,
-    }).then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => sopApi.list({
+    size: FETCH_SIZE,
+    search: search || undefined,
+    category: filterCategory || undefined,
+    status: filterStatus || undefined,
+  }))
 
   useEffect(() => { setPage(1); load() }, [filterCategory, filterStatus])
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
-
-  const totalPages = Math.ceil(total / PAGE_SIZE)
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // 상태별 카운트
   const statusCounts = items.reduce<Record<string, number>>((acc, s) => {

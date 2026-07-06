@@ -3,24 +3,21 @@ import { equipmentApi, type Equipment, type InvestmentRecord, EQ_CATEGORIES, EQ_
 import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
 import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
 import EquipmentForm from '@/pages/EquipmentForm'
 
 type Tab = '장비 대장' | '투자 로드맵'
 
 const INVEST_TYPES = ['신규구입', '유지보수', '교정비', '수리', '폐기']
 const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)
-const FETCH_SIZE = 1000
 
 export default function EquipmentList() {
   const [tab, setTab] = useState<Tab>('장비 대장')
-  const [items, setItems] = useState<Equipment[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { items, total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<Equipment>({ key: 'name', dir: 'asc' })
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' })
   const [formId, setFormId] = useState<number | null | undefined>(undefined)
 
   // 투자 로드맵
@@ -30,18 +27,12 @@ export default function EquipmentList() {
   const [filterInvestType, setFilterInvestType] = useState('')
   const [invSort, setInvSort] = useState<SortState>({ key: 'year', dir: 'desc' })
 
-  const PAGE_SIZE = 20
-
-  const load = () => {
-    setLoading(true)
-    equipmentApi.list({
-      size: FETCH_SIZE,
-      search: search || undefined,
-      status: filterStatus || undefined,
-      category: filterCategory || undefined,
-    }).then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => equipmentApi.list({
+    size: FETCH_SIZE,
+    search: search || undefined,
+    status: filterStatus || undefined,
+    category: filterCategory || undefined,
+  }))
 
   const loadInvestments = () => {
     setInvLoading(true)
@@ -55,10 +46,6 @@ export default function EquipmentList() {
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
-
-  const totalPages = Math.ceil(total / PAGE_SIZE)
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // 투자 로드맵 — 연도별 합계
   const filteredInvestments = sortByKey(

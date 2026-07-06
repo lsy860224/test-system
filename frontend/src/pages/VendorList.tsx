@@ -2,22 +2,19 @@ import { useEffect, useState } from 'react'
 import { vendorApi, type VendorLab, type PriceCompareItem, LAB_TYPES } from '@/api/vendor'
 import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
-import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
+import { toggleSort } from '@/utils/sort'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
 import VendorForm from '@/pages/VendorForm'
 
 type Tab = '시험소 목록' | '단가 비교'
-const FETCH_SIZE = 1000
 
 export default function VendorList() {
   const [tab, setTab] = useState<Tab>('시험소 목록')
-  const [items, setItems] = useState<VendorLab[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { items, total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<VendorLab>({ key: 'name', dir: 'asc' })
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterKolas, setFilterKolas] = useState(false)
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' })
   const [formId, setFormId] = useState<number | null | undefined>(undefined)
 
   // 단가 비교 탭
@@ -25,26 +22,17 @@ export default function VendorList() {
   const [compareResults, setCompareResults] = useState<PriceCompareItem[]>([])
   const [comparing, setComparing] = useState(false)
 
-  const PAGE_SIZE = 20
-
-  const load = () => {
-    setLoading(true)
-    vendorApi.list({
-      size: FETCH_SIZE,
-      search: search || undefined,
-      lab_type: filterType || undefined,
-      kolas_only: filterKolas || undefined,
-    }).then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => vendorApi.list({
+    size: FETCH_SIZE,
+    search: search || undefined,
+    lab_type: filterType || undefined,
+    kolas_only: filterKolas || undefined,
+  }))
 
   useEffect(() => { setPage(1); load() }, [filterType, filterKolas])
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
-
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const handleCompare = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,8 +44,6 @@ export default function VendorList() {
     } catch { alert('비교 중 오류가 발생했습니다') }
     finally { setComparing(false) }
   }
-
-  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
     <div style={{ padding: 28, maxWidth: 1200 }}>
