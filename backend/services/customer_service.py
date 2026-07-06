@@ -1,11 +1,9 @@
-import os
-import shutil
 from datetime import datetime
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from models.customer import Customer, CustomerContact, CustomerAttachment
 from schemas.customer import CustomerCreate, CustomerUpdate, ContactCreate
-from config import settings
+from services import file_helper, pagination_helper
 
 def list_customers(db: Session, page: int, size: int, search: str | None, company_type: str | None) -> dict:
     q = db.query(Customer).filter(Customer.is_active == True)
@@ -13,9 +11,7 @@ def list_customers(db: Session, page: int, size: int, search: str | None, compan
         q = q.filter(Customer.name.ilike(f"%{search}%"))
     if company_type:
         q = q.filter(Customer.company_type == company_type)
-    total = q.count()
-    items = q.order_by(Customer.name).offset((page - 1) * size).limit(size).all()
-    return {"total": total, "items": items}
+    return pagination_helper.paginate(q.order_by(Customer.name), page, size)
 
 def get_customer(db: Session, customer_id: int) -> Customer:
     customer = db.query(Customer).filter(Customer.id == customer_id, Customer.is_active == True).first()
@@ -77,12 +73,7 @@ def remove_contact(db: Session, customer_id: int, contact_id: int):
 
 def save_attachment(db: Session, customer_id: int, doc_type: str, file: UploadFile, uploaded_by: int) -> dict:
     get_customer(db, customer_id)
-    dest_dir = os.path.join(settings.upload_dir, "customers", str(customer_id))
-    os.makedirs(dest_dir, exist_ok=True)
-    dest_path = os.path.join(dest_dir, file.filename)
-    with open(dest_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    file_size = os.path.getsize(dest_path)
+    dest_path, file_size = file_helper.save_upload("customers", customer_id, file)
     attachment = CustomerAttachment(
         customer_id=customer_id,
         doc_type=doc_type,
@@ -102,9 +93,7 @@ def delete_attachment(db: Session, customer_id: int, attachment_id: int):
         CustomerAttachment.id == attachment_id,
         CustomerAttachment.customer_id == customer_id,
     ).first()
-    if not att:
-        raise HTTPException(status_code=404, detail="첨부파일을 찾을 수 없습니다")
-    if os.path.exists(att.file_path):
-        os.remove(att.file_path)
+    file_helper.attachment_or_404(att)
+    file_helper.delete_upload(att.file_path)
     db.delete(att)
     db.commit()

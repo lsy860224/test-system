@@ -6,6 +6,7 @@ from io import BytesIO
 
 from models.equipment import Equipment, EquipmentCalibration, EquipmentStandardMapping, EquipmentInvestment
 from schemas.equipment import EquipmentCreate, EquipmentUpdate, CalibrationCreate, InvestmentCreate
+from services import pagination_helper
 
 
 def _attach_expiry(item: Equipment) -> Equipment:
@@ -38,11 +39,10 @@ def list_equipment(
     if category:
         q = q.filter(Equipment.category == category)
 
-    total = q.count()
-    items = q.order_by(Equipment.name).offset((page - 1) * size).limit(size).all()
-    for item in items:
+    result = pagination_helper.paginate(q.order_by(Equipment.name), page, size)
+    for item in result["items"]:
         _attach_expiry(item)
-    return {"total": total, "items": items}
+    return result
 
 
 def get_equipment(db: Session, eq_id: int) -> Equipment:
@@ -134,12 +134,13 @@ def get_standard_item_ids(db: Session, eq_id: int) -> list[int]:
     return [r.standard_item_id for r in rows]
 
 
-def set_standard_items(db: Session, eq_id: int, standard_item_ids: list[int]):
+def set_standard_items(db: Session, eq_id: int, standard_item_ids: list[int]) -> dict:
     get_equipment(db, eq_id)
     db.query(EquipmentStandardMapping).filter(EquipmentStandardMapping.equipment_id == eq_id).delete()
     for sid in standard_item_ids:
         db.add(EquipmentStandardMapping(equipment_id=eq_id, standard_item_id=sid))
     db.commit()
+    return {"ok": True}
 
 
 # ── 투자 계획 ─────────────────────────────────────────

@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from models.vendor import VendorLab, VendorTestScope, VendorOrder
 from schemas.vendor import VendorCreate, VendorUpdate, TestScopeCreate, OrderCreate
+from services import pagination_helper
 
 
 def _attach_counts(item: VendorLab) -> VendorLab:
@@ -32,11 +33,10 @@ def list_vendors(
     if kolas_only:
         q = q.filter(VendorLab.kolas_certified == True)
 
-    total = q.count()
-    items = q.order_by(VendorLab.name).offset((page - 1) * size).limit(size).all()
-    for item in items:
+    result = pagination_helper.paginate(q.order_by(VendorLab.name), page, size)
+    for item in result["items"]:
         _attach_counts(item)
-    return {"total": total, "items": items}
+    return result
 
 
 def get_vendor(db: Session, vendor_id: int) -> VendorLab:

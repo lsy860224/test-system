@@ -1,11 +1,9 @@
-import os
-import shutil
 from datetime import datetime
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from models.ncr import NCRReport, NCRAttachment, NCRComment
 from schemas.ncr import NCRCreate, NCRUpdate
-from config import settings
+from services import file_helper, pagination_helper
 
 OPEN_STATUSES = ("초기분석", "8D진행", "검토중")
 
@@ -37,9 +35,9 @@ def list_ncrs(db: Session, page: int, size: int, status, severity, search, overd
     if overdue:
         today = datetime.utcnow().date()
         q = q.filter(NCRReport.due_date < today, NCRReport.status.in_(OPEN_STATUSES))
-    total = q.count()
-    items = q.order_by(NCRReport.created_at.desc()).offset((page - 1) * size).limit(size).all()
-    return {"total": total, "items": [_mark_overdue(i) for i in items]}
+    result = pagination_helper.paginate(q.order_by(NCRReport.created_at.desc()), page, size)
+    result["items"] = [_mark_overdue(i) for i in result["items"]]
+    return result
 
 def get_ncr(db: Session, ncr_id: int) -> NCRReport:
     ncr = db.query(NCRReport).filter(NCRReport.id == ncr_id).first()
@@ -88,16 +86,12 @@ def delete_ncr(db: Session, ncr_id: int):
 
 def save_attachment(db: Session, ncr_id: int, file: UploadFile, uploaded_by: int) -> dict:
     get_ncr(db, ncr_id)
-    dest_dir = os.path.join(settings.upload_dir, "ncr", str(ncr_id))
-    os.makedirs(dest_dir, exist_ok=True)
-    dest_path = os.path.join(dest_dir, file.filename)
-    with open(dest_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    dest_path, file_size = file_helper.save_upload("ncr", ncr_id, file)
     att = NCRAttachment(
         ncr_id=ncr_id,
         file_name=file.filename,
         file_path=dest_path,
-        file_size=os.path.getsize(dest_path),
+        file_size=file_size,
         file_type=file.content_type,
         uploaded_at=datetime.utcnow(),
         uploaded_by=uploaded_by,
@@ -112,13 +106,10 @@ def get_attachment(db: Session, ncr_id: int, attachment_id: int) -> NCRAttachmen
         NCRAttachment.id == attachment_id,
         NCRAttachment.ncr_id == ncr_id,
     ).first()
-    if not att:
-        raise HTTPException(status_code=404, detail="첨부파일을 찾을 수 없습니다")
-    return att
+    return file_helper.attachment_or_404(att)
 
 def delete_attachment(db: Session, ncr_id: int, attachment_id: int):
     att = get_attachment(db, ncr_id, attachment_id)
-    if os.path.exists(att.file_path):
-        os.remove(att.file_path)
+    file_helper.delete_upload(att.file_path)
     db.delete(att)
     db.commit()

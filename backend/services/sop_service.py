@@ -1,13 +1,11 @@
-import os
-import shutil
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, delete, insert
 from fastapi import HTTPException, UploadFile
 
 from models.sop import SOP, SOPRevision, SOPAttachment, sop_standard_items
-from models.standard import StandardItem, StandardCategory
+from models.standard import StandardItem
 from schemas.sop import SOPCreate, SOPUpdate, RevisionCreate
-from config import settings
+from services import file_helper, pagination_helper, standard_service
 
 
 # ── SOP CRUD ──────────────────────────────────────────────
@@ -27,9 +25,7 @@ def list_sops(
     if status:
         q = q.filter(SOP.status == status)
 
-    total = q.count()
-    items = q.order_by(SOP.sop_number).offset((page - 1) * size).limit(size).all()
-    return {"total": total, "items": items}
+    return pagination_helper.paginate(q.order_by(SOP.sop_number), page, size)
 
 
 def get_sop(db: Session, sop_id: int) -> SOP:
@@ -101,16 +97,12 @@ def delete_revision(db: Session, sop_id: int, rev_id: int):
 # ── 첨부파일 ──────────────────────────────────────────────
 def save_attachment(db: Session, sop_id: int, file: UploadFile, uploaded_by: int) -> SOPAttachment:
     get_sop(db, sop_id)
-    dest_dir = os.path.join(settings.upload_dir, "sop", str(sop_id))
-    os.makedirs(dest_dir, exist_ok=True)
-    dest_path = os.path.join(dest_dir, file.filename)
-    with open(dest_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    dest_path, file_size = file_helper.save_upload("sop", sop_id, file)
     attachment = SOPAttachment(
         sop_id=sop_id,
         file_name=file.filename,
         file_path=dest_path,
-        file_size=os.path.getsize(dest_path),
+        file_size=file_size,
         uploaded_by=uploaded_by,
     )
     db.add(attachment)
@@ -124,15 +116,12 @@ def get_attachment(db: Session, sop_id: int, attachment_id: int) -> SOPAttachmen
         SOPAttachment.id == attachment_id,
         SOPAttachment.sop_id == sop_id,
     ).first()
-    if not att:
-        raise HTTPException(status_code=404, detail="첨부파일을 찾을 수 없습니다")
-    return att
+    return file_helper.attachment_or_404(att)
 
 
 def delete_attachment(db: Session, sop_id: int, attachment_id: int):
     att = get_attachment(db, sop_id, attachment_id)
-    if os.path.exists(att.file_path):
-        os.remove(att.file_path)
+    file_helper.delete_upload(att.file_path)
     db.delete(att)
     db.commit()
 
@@ -140,7 +129,6 @@ def delete_attachment(db: Session, sop_id: int, attachment_id: int):
 # ── SOP-규격 항목 연동 ──────────────────────────────────────
 def get_sop_standard_items(db: Session, sop_id: int) -> list:
     get_sop(db, sop_id)
-    cats = {c.id: c for c in db.query(StandardCategory).all()}
     items = (
         db.query(StandardItem)
         .join(sop_standard_items, sop_standard_items.c.standard_item_id == StandardItem.id)
@@ -148,11 +136,7 @@ def get_sop_standard_items(db: Session, sop_id: int) -> list:
         .order_by(StandardItem.standard_code)
         .all()
     )
-    for item in items:
-        cat = cats.get(item.category_id)
-        item.category_name = cat.name_ko if cat else None
-        item.category_color = cat.color_hex if cat else None
-    return items
+    return standard_service.attach_category_names(db, items)
 
 
 def set_sop_standard_items(db: Session, sop_id: int, standard_item_ids: list[int]) -> list:

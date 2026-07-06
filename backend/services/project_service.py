@@ -2,9 +2,10 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select, or_
 from models.project import Project, ProjectMilestone, project_standard_items
-from models.standard import StandardItem, StandardCategory
+from models.standard import StandardItem
 from models.item import Item
 from schemas.project import ProjectCreate, ProjectUpdate, MilestoneCreate
+from services import pagination_helper, standard_service
 
 def _sync_part_name(db: Session, project: Project):
     """item_id가 연결되어 있으면 표시용 part_name을 Item.name으로 동기화 (하위호환 필드)"""
@@ -24,9 +25,7 @@ def list_projects(db: Session, page: int, size: int, customer_id, status, phase=
     if search:
         like = f"%{search}%"
         q = q.filter(or_(Project.name.ilike(like), Project.project_code.ilike(like), Project.part_name.ilike(like)))
-    total = q.count()
-    items = q.order_by(Project.created_at.desc()).offset((page - 1) * size).limit(size).all()
-    return {"total": total, "items": items}
+    return pagination_helper.paginate(q.order_by(Project.created_at.desc()), page, size)
 
 def get_project(db: Session, project_id: int) -> Project:
     p = db.query(Project).filter(Project.id == project_id).first()
@@ -67,7 +66,6 @@ def add_milestone(db: Session, project_id: int, body: MilestoneCreate) -> Projec
 # ── 프로젝트-규격 항목 연동 ────────────────────────────────────
 def get_project_standard_items(db: Session, project_id: int) -> list:
     get_project(db, project_id)
-    cats = {c.id: c for c in db.query(StandardCategory).all()}
     items = (
         db.query(StandardItem)
         .join(project_standard_items, project_standard_items.c.standard_item_id == StandardItem.id)
@@ -75,11 +73,7 @@ def get_project_standard_items(db: Session, project_id: int) -> list:
         .order_by(StandardItem.standard_code)
         .all()
     )
-    for item in items:
-        cat = cats.get(item.category_id)
-        item.category_name = cat.name_ko if cat else None
-        item.category_color = cat.color_hex if cat else None
-    return items
+    return standard_service.attach_category_names(db, items)
 
 def set_project_standard_items(db: Session, project_id: int, standard_item_ids: list[int]) -> list:
     get_project(db, project_id)

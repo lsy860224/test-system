@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.standard import StandardItem, StandardCategory, StandardHistory
 from schemas.standard import StandardItemCreate, StandardItemUpdate
+from services import pagination_helper
 
 # ── categories ─────────────────────────────────────────────
 def list_categories(db: Session) -> list:
@@ -25,9 +26,9 @@ def list_items(db: Session, page: int, size: int, category_id, status, source_ty
             StandardItem.standard_no.ilike(f"%{search}%") |
             StandardItem.standard_name.ilike(f"%{search}%")
         )
-    total = q.count()
-    items = q.order_by(StandardItem.standard_code).offset((page - 1) * size).limit(size).all()
-    return {"total": total, "items": _attach_category_name(db, items)}
+    result = pagination_helper.paginate(q.order_by(StandardItem.standard_code), page, size)
+    result["items"] = attach_category_names(db, result["items"])
+    return result
 
 def get_item(db: Session, item_id: int) -> StandardItem:
     item = db.query(StandardItem).filter(StandardItem.id == item_id, StandardItem.is_deleted == False).first()
@@ -203,7 +204,7 @@ def import_from_excel(db: Session, file_bytes: bytes, created_by: int) -> dict:
 def _calc_priority(priority: str) -> int:
     return {"High": 3, "Med": 2, "Low": 1}.get(priority, 2)
 
-def _attach_category_name(db: Session, items: list) -> list:
+def attach_category_names(db: Session, items: list) -> list:
     cats = {c.id: c for c in db.query(StandardCategory).all()}
     for item in items:
         cat = cats.get(item.category_id)

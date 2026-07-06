@@ -103,5 +103,4 @@ def get_standard_items(eq_id: int, db: Session = Depends(get_db), _=Depends(get_
 
 @router.put("/{eq_id}/standard-items")
 def set_standard_items(eq_id: int, body: dict, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    equipment_service.set_standard_items(db, eq_id, body.get("standard_item_ids", []))
-    return {"ok": True}
+    return equipment_service.set_standard_items(db, eq_id, body.get("standard_item_ids", []))

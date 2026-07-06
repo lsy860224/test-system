@@ -8,6 +8,7 @@ from models.standard import StandardItem
 from models.customer import Customer
 from models.item import Item
 from schemas.schedule import TestScheduleCreate, TestScheduleUpdate, TestScheduleResultPatch, VendorCreate
+from services import pagination_helper
 
 STATUS_KEYS = ["계획", "준비중", "진행중", "완료", "지연", "취소"]
 
@@ -62,8 +63,7 @@ def list_schedules(db: Session, page: int, size: int, project_id, status, test_t
             TestSchedule.project_id.in_(matching_project_ids),
             TestSchedule.standard_item_id.in_(matching_std_ids),
         ))
-    total = q.count()
-    items = q.order_by(TestSchedule.planned_start).offset((page - 1) * size).limit(size).all()
+    result = pagination_helper.paginate(q.order_by(TestSchedule.planned_start), page, size)
 
     projects_all = db.query(Project).all()
     proj_names = {p.id: p.name for p in projects_all}
@@ -71,13 +71,13 @@ def list_schedules(db: Session, page: int, size: int, project_id, status, test_t
     std_items_all = db.query(StandardItem).all()
     std_names = {s.id: s.name for s in std_items_all}
     std_codes = {s.id: s.standard_code for s in std_items_all}
-    for it in items:
+    for it in result["items"]:
         it.project_name = proj_names.get(it.project_id)
         it.project_part_name = proj_part_names.get(it.project_id)
         it.standard_name = std_names.get(it.standard_item_id)
         it.standard_code = std_codes.get(it.standard_item_id)
         it.display_status = compute_status(it)
-    return {"total": total, "items": items}
+    return result
 
 def get_schedule(db: Session, schedule_id: int) -> TestSchedule:
     s = db.query(TestSchedule).filter(TestSchedule.id == schedule_id).first()
@@ -177,9 +177,9 @@ def get_project_summary(db: Session, page: int, size: int, search: str | None = 
     if search:
         like = f"%{search}%"
         q = q.filter(or_(Project.name.ilike(like), Project.project_code.ilike(like), Project.part_name.ilike(like)))
-    q = q.order_by(Project.id.desc())
-    total = q.count()
-    projects = q.offset((page - 1) * size).limit(size).all()
+    paged = pagination_helper.paginate(q.order_by(Project.id.desc()), page, size)
+    total = paged["total"]
+    projects = paged["items"]
 
     customer_names = {c.id: c.name for c in db.query(Customer).all()}
     item_names = {i.id: i.name for i in db.query(Item).all()}

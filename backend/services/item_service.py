@@ -2,14 +2,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.item import Item
 from schemas.item import ItemCreate, ItemUpdate
+from services import pagination_helper
 
 def list_items(db: Session, page: int, size: int, search: str | None) -> dict:
     q = db.query(Item).filter(Item.is_active == True)
     if search:
         q = q.filter(Item.name.ilike(f"%{search}%"))
-    total = q.count()
-    items = q.order_by(Item.name).offset((page - 1) * size).limit(size).all()
-    return {"total": total, "items": items}
+    return pagination_helper.paginate(q.order_by(Item.name), page, size)
 
 def get_item(db: Session, item_id: int) -> Item:
     item = db.query(Item).filter(Item.id == item_id, Item.is_active == True).first()
