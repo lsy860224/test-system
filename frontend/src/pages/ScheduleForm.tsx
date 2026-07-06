@@ -7,6 +7,7 @@ import { usersApi, type AppUser } from '@/api/users'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { useFormState } from '@/hooks/useFormState'
 
 interface Props {
   scheduleId: number | null
@@ -31,7 +32,7 @@ const empty = {
 
 export default function ScheduleForm({ scheduleId, initialProjectId, initialStandardItemId, onClose, onSaved }: Props) {
   const isEdit = scheduleId !== null
-  const [form, setForm] = useState({
+  const [form, setForm, set] = useFormState({
     ...empty,
     project_id: initialProjectId ? String(initialProjectId) : '',
     standard_item_id: initialStandardItemId ? String(initialStandardItemId) : '',
@@ -66,8 +67,6 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
       })
     }).finally(() => setLoading(false))
   }, [scheduleId])
-
-  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
 
   const handleDelete = async () => {
     if (!scheduleId) return

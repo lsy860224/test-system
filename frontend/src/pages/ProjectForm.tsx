@@ -3,6 +3,7 @@ import { projectsApi } from '@/api/projects'
 import { customersApi, type CustomerListItem } from '@/api/customers'
 import { standardApi, type StandardItem, type StandardCategory } from '@/api/standards'
 import { itemsApi, type Item } from '@/api/items'
+import { useFormState } from '@/hooks/useFormState'
 import { usersApi, type AppUser } from '@/api/users'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -30,7 +31,7 @@ const STATUSES = ['활성', '완료', '보류', '취소']
 export default function ProjectForm({ projectId, onClose, onSaved, standalone }: Props) {
   const isEdit = projectId !== null
   const [tab, setTab] = useState<Tab>('info')
-  const [form, setForm] = useState({ ...empty })
+  const [form, setForm, set] = useFormState({ ...empty })
   const [customers, setCustomers] = useState<CustomerListItem[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [users, setUsers] = useState<AppUser[]>([])
@@ -78,8 +79,6 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
       setSelectedIds(new Set((standardItems as StandardItem[]).map((e) => e.id)))
     }).finally(() => setLoading(false))
   }, [projectId])
-
-  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
 
   const handleDelete = async () => {
     if (!projectId) return

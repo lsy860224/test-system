@@ -9,6 +9,7 @@ import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import { useFormState } from '@/hooks/useFormState'
 
 interface Props {
   sopId: number | null
@@ -31,7 +32,7 @@ const emptyRevForm = {
 export default function SOPForm({ sopId, onClose, onSaved }: Props) {
   const isEdit = sopId !== null
   const [tab, setTab] = useState<Tab>('기본정보')
-  const [form, setForm] = useState({ ...emptyForm })
+  const [form, setForm, set] = useFormState({ ...emptyForm })
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -82,7 +83,6 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
     }).finally(() => setLoading(false))
   }, [sopId])
 
-  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
   const setRev = (key: string, value: string) => setRevForm((p) => ({ ...p, [key]: value }))
 
   const toggleStandard = (id: number) => setSelectedStandardIds((prev) => {

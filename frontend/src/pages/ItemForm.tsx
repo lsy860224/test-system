@@ -1,5 +1,6 @@
 import React, { type CSSProperties, useEffect, useState } from 'react'
 import { itemsApi, ITEM_CATEGORIES } from '@/api/items'
+import { useFormState } from '@/hooks/useFormState'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
@@ -21,7 +22,7 @@ const empty = {
 
 export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props) {
   const isEdit = itemId !== null
-  const [form, setForm] = useState({ ...empty })
+  const [form, setForm, set] = useFormState({ ...empty })
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -38,8 +39,6 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
       })
     }).finally(() => setLoading(false))
   }, [itemId])
-
-  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
 
   const handleDelete = async () => {
     if (!itemId) return

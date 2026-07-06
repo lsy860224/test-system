@@ -2,6 +2,7 @@ import React, { type ReactNode, type CSSProperties, useEffect, useRef, useState 
 import { customersApi, type Customer, type Contact, type Attachment } from '@/api/customers'
 import Button from '@/components/ui/Button'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import { useFormState } from '@/hooks/useFormState'
 
 interface Props {
   customerId: number | null
@@ -24,7 +25,7 @@ const emptyInfo = {
 export default function CustomerForm({ customerId, onClose, onSaved, standalone }: Props) {
   const isEdit = customerId !== null
   const [tab, setTab] = useState<Tab>('info')
-  const [info, setInfo] = useState({ ...emptyInfo })
+  const [info, setInfo, setField] = useFormState({ ...emptyInfo })
   const [contacts, setContacts] = useState<Partial<Contact>[]>([{ name: '', title: '', phone: '', email: '', is_primary: true }])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [pendingFiles, setPendingFiles] = useState<{ file: File; docType: string }[]>([])
@@ -48,7 +49,6 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
     }).finally(() => setLoading(false))
   }, [customerId])
 
-  const setField = (key: string, value: string) => setInfo((prev) => ({ ...prev, [key]: value }))
 
   const addContact = () => setContacts((prev) => [...prev, { name: '', title: '', phone: '', email: '', is_primary: false }])
   const removeContact = (idx: number) => setContacts((prev) => prev.filter((_, i) => i !== idx))

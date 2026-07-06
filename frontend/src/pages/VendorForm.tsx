@@ -6,6 +6,7 @@ import {
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { useFormState } from '@/hooks/useFormState'
 
 interface Props {
   vendorId: number | null
@@ -38,7 +39,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   const TABS: Tab[] = allowedTabs ?? (isEdit ? ['기본정보', '단가표', '발주이력'] : ['기본정보'])
   const showBasicInfo = TABS.includes('기본정보')
   const [tab, setTab] = useState<Tab>(TABS[0])
-  const [form, setForm] = useState({ ...emptyForm })
+  const [form, setForm, set] = useFormState({ ...emptyForm })
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -72,7 +73,6 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
     }).finally(() => setLoading(false))
   }, [vendorId])
 
-  const set = (key: string, value: string | boolean) => setForm((p) => ({ ...p, [key]: value }))
   const setScope = (key: string, value: string) => setScopeForm((p) => ({ ...p, [key]: value }))
   const setOrder = (key: string, value: string) => setOrderForm((p) => ({ ...p, [key]: value }))
 

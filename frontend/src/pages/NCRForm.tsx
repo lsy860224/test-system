@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import { useFormState } from '@/hooks/useFormState'
 
 export interface NCRPrefill {
   part_name?: string
@@ -63,7 +64,7 @@ const D_FIELDS: { key: keyof typeof empty8d; label: string; placeholder: string 
 export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Props) {
   const isEdit = ncrId !== null
   const [tab, setTab] = useState<Tab>('기본정보')
-  const [form, setForm] = useState({ ...empty, ...(!isEdit ? initialValues : {}) })
+  const [form, setForm, set] = useFormState({ ...empty, ...(!isEdit ? initialValues : {}) })
   const [form8d, setForm8d] = useState({ ...empty8d })
   const [standardItems, setStandardItems] = useState<StandardItem[]>([])
   const [schedules, setSchedules] = useState<ScheduleOption[]>([])
@@ -113,7 +114,6 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
     }).finally(() => setLoading(false))
   }, [ncrId])
 
-  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
   const set8d = (key: keyof typeof empty8d, value: string) => setForm8d((p) => ({ ...p, [key]: value }))
 
   const handleFileDrop = (e: React.DragEvent) => {

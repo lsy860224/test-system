@@ -3,6 +3,7 @@ import { standardApi, type StandardItem, type StandardCategory } from '@/api/sta
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { useFormState } from '@/hooks/useFormState'
 
 interface Props {
   itemId: number | null
@@ -37,7 +38,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   const isEdit = itemId !== null
 
   // 수정 모드 상태
-  const [form, setForm] = useState({ ...emptyForm })
+  const [form, setForm, set] = useFormState({ ...emptyForm })
 
   // 생성 모드 상태
   const [header, setHeader] = useState({ standard_no: '', standard_name: '', revision_no: '' })
@@ -93,7 +94,6 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   }, [copyFromStdNo])
 
   // ── 핸들러 ─────────────────────────────────────────
-  const setF = (key: string, v: string) => setForm((p) => ({ ...p, [key]: v }))
   const setH = (key: string, v: string) => setHeader((p) => ({ ...p, [key]: v }))
 
   const setRow = (key: string, field: keyof ItemRow, v: string) =>
@@ -195,32 +195,32 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
         <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(80vh - 150px)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
             <F label="규격 No.">
-              <input value={form.standard_no} onChange={(e) => setF('standard_no', e.target.value)} style={inp} placeholder="ISO 16750-2" />
+              <input value={form.standard_no} onChange={(e) => set('standard_no', e.target.value)} style={inp} placeholder="ISO 16750-2" />
             </F>
             <F label="규격명">
-              <input value={form.standard_name} onChange={(e) => setF('standard_name', e.target.value)} style={inp} placeholder="도로차량 전기전자장치 환경조건 및 시험" />
+              <input value={form.standard_name} onChange={(e) => set('standard_name', e.target.value)} style={inp} placeholder="도로차량 전기전자장치 환경조건 및 시험" />
             </F>
             <F label="Revision No.">
-              <input value={form.revision_no} onChange={(e) => setF('revision_no', e.target.value)} style={inp} placeholder="Ed.4.0 / Rev.5" />
+              <input value={form.revision_no} onChange={(e) => set('revision_no', e.target.value)} style={inp} placeholder="Ed.4.0 / Rev.5" />
             </F>
             <div />
             <F label="항목 No. *">
-              <input value={form.standard_code} onChange={(e) => setF('standard_code', e.target.value)} style={inp} placeholder="6.3.1" />
+              <input value={form.standard_code} onChange={(e) => set('standard_code', e.target.value)} style={inp} placeholder="6.3.1" />
             </F>
             <F label="분류">
-              <select value={form.category_id} onChange={(e) => setF('category_id', e.target.value)} style={inp}>
+              <select value={form.category_id} onChange={(e) => set('category_id', e.target.value)} style={inp}>
                 <option value="">-- 분류 선택 --</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name_ko}</option>)}
               </select>
             </F>
             <F label="시험 항목명 *" span={2}>
-              <input value={form.name} onChange={(e) => setF('name', e.target.value)} style={inp} placeholder="온도 사이클 시험" />
+              <input value={form.name} onChange={(e) => set('name', e.target.value)} style={inp} placeholder="온도 사이클 시험" />
             </F>
             <F label="시험 조건 요약" span={2}>
-              <input value={form.test_condition_summary} onChange={(e) => setF('test_condition_summary', e.target.value)} style={inp} placeholder="-40°C ~ +85°C, 1000 cycles" />
+              <input value={form.test_condition_summary} onChange={(e) => set('test_condition_summary', e.target.value)} style={inp} placeholder="-40°C ~ +85°C, 1000 cycles" />
             </F>
             <F label="메모" span={2}>
-              <textarea value={form.notes} onChange={(e) => setF('notes', e.target.value)}
+              <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
                 rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="특이사항, 외주 의뢰 조건 등" />
             </F>
           </div>

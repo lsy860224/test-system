@@ -4,6 +4,7 @@ import {
   EQ_CATEGORIES, EQ_STATUSES, CAL_TYPES, CAL_RESULTS, INVEST_TYPES, STATUS_COLORS,
 } from '@/api/equipment'
 import { standardApi, type StandardItem } from '@/api/standards'
+import { useFormState } from '@/hooks/useFormState'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
@@ -35,7 +36,7 @@ const emptyInvForm = {
 export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) {
   const isEdit = equipmentId !== null
   const [tab, setTab] = useState<Tab>('기본정보')
-  const [form, setForm] = useState({ ...emptyForm })
+  const [form, setForm, set] = useFormState({ ...emptyForm })
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -81,7 +82,6 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
     equipmentApi.getStandardItems(equipmentId).then((ids) => setSelectedStandardIds(new Set(ids)))
   }, [equipmentId])
 
-  const set = (key: string, value: string | number) => setForm((p) => ({ ...p, [key]: value }))
   const setCal = (key: string, value: string) => setCalForm((p) => ({ ...p, [key]: value }))
   const setInv = (key: string, value: string | number) => setInvForm((p) => ({ ...p, [key]: value }))
 
