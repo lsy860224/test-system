@@ -1,0 +1,380 @@
+import React, { type CSSProperties, useEffect, useState } from 'react'
+import { projectsApi } from '@/api/projects'
+import { customersApi, type CustomerListItem } from '@/api/customers'
+import { standardApi, type StandardItem, type StandardCategory } from '@/api/standards'
+import { itemsApi, type Item } from '@/api/items'
+import { usersApi, type AppUser } from '@/api/users'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
+
+interface Props {
+  projectId: number | null
+  onClose: () => void
+  onSaved: () => void
+  standalone?: boolean
+}
+
+type Tab = 'info' | 'standards'
+
+const empty = {
+  customer_id: '', item_id: '', name: '', project_code: '', part_name: '',
+  phase: '개발', status: '활성',
+  start_date: '', target_date: '', assignee_id: '', notes: '',
+}
+
+const PHASES = ['RFQ', '개발', 'DV', 'PV', '양산준비', '양산']
+const STATUSES = ['활성', '완료', '보류', '취소']
+
+export default function ProjectForm({ projectId, onClose, onSaved, standalone }: Props) {
+  const isEdit = projectId !== null
+  const [tab, setTab] = useState<Tab>('info')
+  const [form, setForm] = useState({ ...empty })
+  const [customers, setCustomers] = useState<CustomerListItem[]>([])
+  const [items, setItems] = useState<Item[]>([])
+  const [users, setUsers] = useState<AppUser[]>([])
+  const [loading, setLoading] = useState(isEdit)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [savedProjectId, setSavedProjectId] = useState<number | null>(projectId)
+
+  // 규격 항목 탭
+  const [allStandards, setAllStandards] = useState<StandardItem[]>([])
+  const [allCategories, setAllCategories] = useState<StandardCategory[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [standardSearch, setStandardSearch] = useState('')
+  const [standardCatFilter, setStandardCatFilter] = useState<number | ''>('')
+  const [standardLoading, setStandardLoading] = useState(false)
+
+  useEffect(() => {
+    customersApi.list({ size: 200 }).then((r) => setCustomers(r.items))
+    itemsApi.list({ size: 1000 }).then((r) => setItems(r.items))
+    usersApi.list().then(setUsers)
+    standardApi.categories().then(setAllCategories)
+    standardApi.list({ size: 500 }).then((r) => setAllStandards(r.items))
+  }, [])
+
+  useEffect(() => {
+    if (!isEdit || !projectId) return
+    Promise.all([
+      projectsApi.get(projectId),
+      projectsApi.getStandardItems(projectId),
+    ]).then(([p, standardItems]) => {
+      const proj = p as Record<string, unknown>
+      setForm({
+        customer_id: proj.customer_id != null ? String(proj.customer_id) : '',
+        item_id: proj.item_id != null ? String(proj.item_id) : '',
+        name: String(proj.name ?? ''),
+        project_code: String(proj.project_code ?? ''),
+        part_name: String(proj.part_name ?? ''),
+        phase: String(proj.phase ?? '개발'),
+        status: String(proj.status ?? '활성'),
+        start_date: String(proj.start_date ?? ''),
+        target_date: String(proj.target_date ?? ''),
+        assignee_id: proj.assignee_id != null ? String(proj.assignee_id) : '',
+        notes: String(proj.notes ?? ''),
+      })
+      setSelectedIds(new Set((standardItems as StandardItem[]).map((e) => e.id)))
+    }).finally(() => setLoading(false))
+  }, [projectId])
+
+  const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
+
+  const handleDelete = async () => {
+    if (!projectId) return
+    if (!confirm('이 프로젝트를 삭제하시겠습니까?\n연결된 시험 일정도 함께 삭제될 수 있습니다.')) return
+    setDeleting(true)
+    try {
+      await projectsApi.delete(projectId)
+      onSaved()
+    } catch {
+      alert('삭제 중 오류가 발생했습니다')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const toggleStandard = (id: number) => setSelectedIds((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  const handleSave = async () => {
+    if (!form.customer_id) { alert('고객사를 선택하세요'); return }
+    if (!form.name.trim()) { alert('프로젝트명을 입력하세요'); return }
+    setSaving(true)
+    try {
+      const payload = {
+        customer_id: Number(form.customer_id),
+        item_id: form.item_id ? Number(form.item_id) : null,
+        name: form.name.trim(),
+        project_code: form.project_code || null,
+        part_name: form.part_name || null,
+        phase: form.phase,
+        status: form.status,
+        start_date: form.start_date || null,
+        target_date: form.target_date || null,
+        assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
+        notes: form.notes || null,
+      }
+
+      let pid = savedProjectId
+      if (!isEdit || !pid) {
+        const created = await projectsApi.create(payload) as { id: number }
+        pid = created.id
+        setSavedProjectId(pid)
+      } else {
+        await projectsApi.update(pid, payload)
+      }
+
+      // 규격 항목 연동 저장
+      if (pid !== null) {
+        setStandardLoading(true)
+        await projectsApi.setStandardItems(pid, [...selectedIds])
+        setStandardLoading(false)
+      }
+
+      onSaved()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      alert(msg)
+    } finally {
+      setSaving(false)
+      setStandardLoading(false)
+    }
+  }
+
+  const filteredStandards = allStandards.filter((e) => {
+    const matchCat = !standardCatFilter || e.category_id === Number(standardCatFilter)
+    const matchSearch = !standardSearch || e.name.includes(standardSearch) || e.standard_code.includes(standardSearch) || (e.standard_name ?? '').includes(standardSearch)
+    return matchCat && matchSearch
+  })
+
+  // group by standard_no
+  const grouped: Record<string, StandardItem[]> = {}
+  for (const item of filteredStandards) {
+    const key = item.standard_no || '(규격 No. 미입력)'
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(item)
+  }
+
+  if (loading) {
+    return (
+      <Overlay onClose={onClose} standalone={standalone}>
+        <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
+      </Overlay>
+    )
+  }
+
+  return (
+    <Overlay onClose={onClose} standalone={standalone}>
+      {/* header */}
+      <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, flex: 1 }}>{isEdit ? '프로젝트 수정' : '프로젝트 등록'}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 0 }}>
+          {([['info', '기본 정보'], ['standards', `규격 항목 (${selectedIds.size})`]] as [Tab, string][]).map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '8px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13,
+              fontWeight: tab === t ? 700 : 400,
+              color: tab === t ? 'var(--au-blue)' : 'var(--text-secondary)',
+              borderBottom: tab === t ? '2px solid var(--au-blue)' : '2px solid transparent',
+              marginBottom: -1,
+            }}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* body */}
+      <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(85vh - 160px)' }}>
+
+        {tab === 'info' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <F label="고객사 *" span={2}>
+              <select value={form.customer_id} onChange={(e) => set('customer_id', e.target.value)} style={inp}>
+                <option value="">-- 고객사 선택 --</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}{c.short_name ? ` (${c.short_name})` : ''}</option>
+                ))}
+              </select>
+            </F>
+            <F label="프로젝트명 *" span={2}>
+              <input value={form.name} onChange={(e) => set('name', e.target.value)} style={inp} placeholder="HKMC IVI 1세대 시험평가" />
+            </F>
+            <F label="프로젝트 코드">
+              <input value={form.project_code} onChange={(e) => set('project_code', e.target.value)} style={inp} placeholder="PRJ-2025-001" />
+            </F>
+            <F label="아이템">
+              <select value={form.item_id} onChange={(e) => {
+                const id = e.target.value
+                const picked = items.find((i) => String(i.id) === id)
+                setForm((p) => ({ ...p, item_id: id, part_name: picked ? picked.name : p.part_name }))
+              }} style={inp}>
+                <option value="">-- 아이템 선택 (없으면 아래 부품명 직접 입력) --</option>
+                {items.map((i) => <option key={i.id} value={i.id}>{i.name}{i.item_code ? ` (${i.item_code})` : ''}</option>)}
+              </select>
+            </F>
+            <F label="부품명">
+              <input value={form.part_name} onChange={(e) => set('part_name', e.target.value)} style={inp} placeholder="IVI 인포테인먼트 시스템" />
+            </F>
+            <F label="개발 단계">
+              <select value={form.phase} onChange={(e) => set('phase', e.target.value)} style={inp}>
+                {PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </F>
+            <F label="상태">
+              <select value={form.status} onChange={(e) => set('status', e.target.value)} style={inp}>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </F>
+            <F label="시작일">
+              <input type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} style={inp} />
+            </F>
+            <F label="목표 완료일">
+              <input type="date" value={form.target_date} onChange={(e) => set('target_date', e.target.value)} style={inp} />
+            </F>
+            <F label="담당자">
+              <select value={form.assignee_id} onChange={(e) => set('assignee_id', e.target.value)} style={inp}>
+                <option value="">-- 담당자 선택 --</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+              </select>
+            </F>
+            <F label="메모" span={2}>
+              <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
+                rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="프로젝트 배경, 특이사항 등" />
+            </F>
+          </div>
+        )}
+
+        {tab === 'standards' && (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input
+                value={standardSearch} onChange={(e) => setStandardSearch(e.target.value)}
+                placeholder="코드 / 항목명 / 규격명 검색"
+                style={{ ...inp, flex: 1 }}
+              />
+              <select value={standardCatFilter} onChange={(e) => setStandardCatFilter(e.target.value ? Number(e.target.value) : '')} style={{ ...inp, width: 'auto' }}>
+                <option value="">전체 분류</option>
+                {allCategories.map((c) => <option key={c.id} value={c.id}>{c.name_ko}</option>)}
+              </select>
+            </div>
+
+            {allStandards.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                등록된 규격 항목이 없습니다.<br />규격 매트릭스에서 항목을 먼저 추가하세요.
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+                  {selectedIds.size > 0 && <span style={{ color: 'var(--au-blue)', fontWeight: 600 }}>{selectedIds.size}건 선택됨 · </span>}
+                  전체 {allStandards.length}건 중 {filteredStandards.length}건 표시
+                </div>
+                {Object.entries(grouped).map(([stdName, items]) => (
+                  <div key={stdName} style={{ marginBottom: 14 }}>
+                    <div style={{
+                      fontSize: 12, fontWeight: 700, color: 'var(--au-indigo)',
+                      padding: '6px 10px', background: '#F0F2FF', borderRadius: 6, marginBottom: 4,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                      <span>📋 {stdName}</span>
+                      <button onClick={() => {
+                        const allSelected = items.every((e) => selectedIds.has(e.id))
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev)
+                          if (allSelected) items.forEach((e) => next.delete(e.id))
+                          else items.forEach((e) => next.add(e.id))
+                          return next
+                        })
+                      }} style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--au-blue)' }}>
+                        {items.every((e) => selectedIds.has(e.id)) ? '전체 해제' : '전체 선택'}
+                      </button>
+                    </div>
+                    {items.map((item) => (
+                      <div key={item.id} onClick={() => toggleStandard(item.id)} style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                        borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                        background: selectedIds.has(item.id) ? '#EBF4FF' : 'transparent',
+                        border: `1px solid ${selectedIds.has(item.id) ? 'var(--au-blue)' : 'var(--border)'}`,
+                      }}>
+                        <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleStandard(item.id)}
+                          onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} />
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 60, fontFamily: 'monospace' }}>{item.standard_code}</span>
+                        <span style={{ fontSize: 13, flex: 1 }}>{item.name}</span>
+                        {item.category_name && (
+                          <Badge label={item.category_name} color={item.category_color} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* footer */}
+      <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {isEdit && (
+          <Button size="sm" onClick={handleDelete} loading={deleting}
+            style={{ background: '#FFF5F5', color: '#E53E3E', border: '1px solid #FED7D7' }}>
+            삭제
+          </Button>
+        )}
+        <div style={{ flex: 1 }} />
+        {(saving || standardLoading) && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>저장 중...</span>
+        )}
+        <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+        <Button size="sm" onClick={handleSave} loading={saving || standardLoading}>
+          {isEdit ? '수정 저장' : '등록'}
+        </Button>
+      </div>
+    </Overlay>
+  )
+}
+
+function Overlay({ children, onClose, standalone }: { children: React.ReactNode; onClose: () => void; standalone?: boolean }) {
+  if (standalone) {
+    return (
+      <div style={{
+        background: 'var(--surface)', borderRadius: 16, width: 720, maxWidth: '95vw',
+        margin: '0 auto', display: 'flex', flexDirection: 'column',
+        border: '1px solid var(--border)',
+      }}>
+        {children}
+      </div>
+    )
+  }
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+    >
+      <div style={{
+        background: 'var(--surface)', borderRadius: 16, width: 720, maxWidth: '95vw',
+        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
+      }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function F({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
+  return (
+    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
+      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
+const inp: CSSProperties = {
+  width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
+  borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box',
+}

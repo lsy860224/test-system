@@ -1,0 +1,90 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { itemsApi, type Item } from '@/api/items'
+import Table, { type Column, type SortState } from '@/components/ui/Table'
+import Button from '@/components/ui/Button'
+import { toggleSort, sortByKey } from '@/utils/sort'
+import ItemForm from './ItemForm'
+
+const FETCH_SIZE = 1000
+
+export default function ItemList() {
+  const navigate = useNavigate()
+  const [items, setItems] = useState<Item[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' })
+  const [formItemId, setFormItemId] = useState<number | null | undefined>(undefined)
+  const PAGE_SIZE = 20
+
+  const load = () => {
+    setLoading(true)
+    itemsApi.list({ size: FETCH_SIZE, search: search || undefined })
+      .then((r) => { setItems(r.items); setTotal(r.total) })
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handleSaved = () => { setFormItemId(undefined); load() }
+
+  const sortedItems = sortByKey(items, sort)
+  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const columns: Column<Item>[] = [
+    { key: 'item_code', header: '아이템 코드', width: 130, sortable: true, render: (r) => r.item_code ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
+    { key: 'name', header: '아이템명', sortable: true },
+    { key: 'category', header: '분류', width: 140, sortable: true, render: (r) => r.category ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
+    { key: 'spec', header: '사양/설명', render: (r) => r.spec ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
+  ]
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1 }}>
+          아이템 리스트 <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>총 {total}건</span>
+        </h2>
+        <Button size="sm" onClick={() => navigate('/items/new')}>+ 아이템 등록</Button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <input
+          placeholder="아이템 코드 / 아이템명 검색"
+          value={search} onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && load()}
+          style={{ padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, width: 220 }}
+        />
+        <Button variant="secondary" size="sm" onClick={load}>검색</Button>
+      </div>
+
+      <Table
+        columns={columns}
+        data={pageItems}
+        rowKey={(r) => r.id}
+        loading={loading}
+        emptyText="등록된 아이템이 없습니다. 위 '+ 아이템 등록' 버튼으로 추가하세요."
+        sort={sort}
+        onSortChange={(key) => { setSort((prev) => toggleSort(prev, key)); setPage(1) }}
+        onRowClick={(r) => setFormItemId(r.id)}
+      />
+
+      {total > PAGE_SIZE && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+          <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>이전</Button>
+          <span style={{ fontSize: 13, lineHeight: '28px', color: 'var(--text-secondary)' }}>{page} / {Math.ceil(total / PAGE_SIZE)}</span>
+          <Button variant="secondary" size="sm" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>다음</Button>
+        </div>
+      )}
+
+      {formItemId !== undefined && (
+        <ItemForm
+          itemId={formItemId}
+          onClose={() => setFormItemId(undefined)}
+          onSaved={handleSaved}
+        />
+      )}
+    </div>
+  )
+}

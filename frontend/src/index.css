@@ -1,0 +1,55 @@
+:root {
+  --au-indigo: #2B2F82;
+  --au-blue: #1565C0;
+  --au-cyan: #29ABE2;
+  --au-gradient: linear-gradient(to right, #2B2F82, #1565C0, #29ABE2);
+  --au-gradient-v: linear-gradient(to bottom, #2B2F82, #1565C0);
+
+  --bg: #F4F6FA;
+  --surface: #FFFFFF;
+  --border: #E2E8F0;
+  --text-primary: #1A202C;
+  --text-secondary: #4A5568;
+  --text-muted: #718096;
+
+  --sidebar-w: 220px;
+  --topbar-h: 56px;
+
+  --status-green: #38A169;
+  --status-yellow: #D69E2E;
+  --status-red: #E53E3E;
+  --status-gray: #718096;
+  --status-blue: #3182CE;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Noto Sans KR', -apple-system, sans-serif;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+button { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; font-size: 14px; }
+a { text-decoration: none; color: inherit; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* utility */
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* print (임원 1-pager PDF 출력용) */
+@media print {
+  .no-print { display: none !important; }
+  html, body, #root, main { height: auto !important; overflow: visible !important; }
+  main { padding: 0 !important; }
+  body { background: #fff; }
+}
