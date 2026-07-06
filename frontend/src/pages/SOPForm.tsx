@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { FileDropZone } from '@/components/ui/FileDropZone'
 
 interface Props {
   sopId: number | null
@@ -330,25 +331,17 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
         {/* ── 첨부파일 ── */}
         {tab === '첨부파일' && (
           <div>
-            <div
+            <FileDropZone
+              isDragOver={isDragOver}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
-              onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true) }}
               onDragLeave={() => setIsDragOver(false)}
               onDrop={handleFileDrop}
               onClick={() => fileRef.current?.click()}
-              style={{
-                border: `2px dashed ${isDragOver ? 'var(--primary)' : 'var(--border)'}`,
-                borderRadius: 12, padding: '32px 20px',
-                textAlign: 'center', cursor: 'pointer', marginBottom: 16,
-                background: isDragOver ? '#EBF4FF' : 'transparent',
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>파일을 드래그하거나 클릭하여 첨부</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>절차서 PDF, Word 원본 등</div>
-            </div>
-            <input ref={fileRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+              fileInputRef={fileRef}
+              onFileSelect={handleFileSelect}
+              hint="절차서 PDF, Word 원본 등"
+              accentColor="var(--primary)"
+            />
 
             {pendingFiles.length > 0 && (
               <div style={{ marginBottom: 16 }}>

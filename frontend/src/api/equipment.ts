@@ -1,4 +1,5 @@
 import client from './client'
+import { downloadBlob } from '@/utils/downloadFile'
 
 export interface Equipment {
   id: number
@@ -104,14 +105,7 @@ export const equipmentApi = {
   // 교정이력 관리 양식 다운로드
   downloadCalibrationTemplate: async () => {
     const response = await client.get('/equipment/calibration-template', { responseType: 'blob' })
-    const url = URL.createObjectURL(response.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = '교정이력관리_양식.xlsx'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    downloadBlob(response.data, '교정이력관리_양식.xlsx')
   },
 }
 

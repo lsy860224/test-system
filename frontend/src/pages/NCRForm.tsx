@@ -5,6 +5,7 @@ import { scheduleApi } from '@/api/schedules'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { FileDropZone } from '@/components/ui/FileDropZone'
 
 export interface NCRPrefill {
   part_name?: string
@@ -344,25 +345,17 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
         {/* ── 첨부파일 ── */}
         {tab === '첨부파일' && (
           <div>
-            <div
+            <FileDropZone
+              isDragOver={isDragOver}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
-              onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true) }}
               onDragLeave={() => setIsDragOver(false)}
               onDrop={handleFileDrop}
               onClick={() => fileRef.current?.click()}
-              style={{
-                border: `2px dashed ${isDragOver ? 'var(--au-blue)' : 'var(--border)'}`,
-                borderRadius: 12, padding: '32px 20px',
-                textAlign: 'center', cursor: 'pointer', marginBottom: 16,
-                background: isDragOver ? '#EBF4FF' : 'transparent',
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>파일을 드래그하거나 클릭하여 첨부</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>불량 사진, 시험 성적서, 8D 근거 자료 등</div>
-            </div>
-            <input ref={fileRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+              fileInputRef={fileRef}
+              onFileSelect={handleFileSelect}
+              hint="불량 사진, 시험 성적서, 8D 근거 자료 등"
+              accentColor="var(--au-blue)"
+            />
 
             {pendingFiles.length > 0 && (
               <div style={{ marginBottom: 16 }}>

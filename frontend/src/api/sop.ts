@@ -1,5 +1,6 @@
 import client from './client'
 import type { StandardItem } from './standards'
+import { downloadBlob } from '@/utils/downloadFile'
 
 export interface SOPItem {
   id: number
@@ -68,14 +69,7 @@ export const sopApi = {
 
   downloadAttachment: async (sopId: number, attachmentId: number, fileName: string) => {
     const response = await client.get(`/sop/${sopId}/attachments/${attachmentId}/download`, { responseType: 'blob' })
-    const url = URL.createObjectURL(response.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    downloadBlob(response.data, fileName)
   },
 
   deleteAttachment: (sopId: number, attachmentId: number) =>

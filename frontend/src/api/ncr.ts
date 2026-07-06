@@ -1,4 +1,5 @@
 import client from './client'
+import { downloadBlob } from '@/utils/downloadFile'
 
 export interface NCRItem {
   id: number
@@ -89,14 +90,7 @@ export const ncrApi = {
 
   downloadAttachment: async (ncrId: number, attachmentId: number, fileName: string) => {
     const response = await client.get(`/ncr/${ncrId}/attachments/${attachmentId}/download`, { responseType: 'blob' })
-    const url = URL.createObjectURL(response.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    downloadBlob(response.data, fileName)
   },
 
   deleteAttachment: (ncrId: number, attachmentId: number) =>

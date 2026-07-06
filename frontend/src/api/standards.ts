@@ -1,4 +1,5 @@
 import client from './client'
+import { downloadBlob } from '@/utils/downloadFile'
 
 export interface StandardItem {
   id: number
@@ -63,13 +64,6 @@ export const standardApi = {
 
   downloadTemplate: async () => {
     const response = await client.get('/standards/template', { responseType: 'blob' })
-    const url = URL.createObjectURL(response.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = '규격매트릭스_양식.xlsx'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    downloadBlob(response.data, '규격매트릭스_양식.xlsx')
   },
 }

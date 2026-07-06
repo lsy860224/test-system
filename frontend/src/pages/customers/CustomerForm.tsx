@@ -1,6 +1,7 @@
 import React, { type ReactNode, type CSSProperties, useEffect, useRef, useState } from 'react'
 import { customersApi, type Customer, type Contact, type Attachment } from '@/api/customers'
 import Button from '@/components/ui/Button'
+import { FileDropZone } from '@/components/ui/FileDropZone'
 
 interface Props {
   customerId: number | null
@@ -222,25 +223,17 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
         {tab === 'attachments' && (
           <div>
             {/* drag-drop zone */}
-            <div
+            <FileDropZone
+              isDragOver={isDragOver}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
-              onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true) }}
               onDragLeave={() => setIsDragOver(false)}
               onDrop={handleFileDrop}
               onClick={() => fileRef.current?.click()}
-              style={{
-                border: `2px dashed ${isDragOver ? 'var(--au-blue)' : 'var(--border)'}`,
-                borderRadius: 12, padding: '32px 20px',
-                textAlign: 'center', cursor: 'pointer', marginBottom: 16,
-                background: isDragOver ? '#EBF4FF' : 'transparent',
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>파일을 드래그하거나 클릭하여 첨부</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>사업자등록증, 계약서, 인증서 등</div>
-            </div>
-            <input ref={fileRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+              fileInputRef={fileRef}
+              onFileSelect={handleFileSelect}
+              hint="사업자등록증, 계약서, 인증서 등"
+              accentColor="var(--au-blue)"
+            />
 
             {/* pending new files */}
             {pendingFiles.length > 0 && (
