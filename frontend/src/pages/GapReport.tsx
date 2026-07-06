@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { reportApi, type GapAnalysisReport, type GapFinding } from '@/api/reports'
+import { PrintButton } from '@/components/ui/PrintButton'
 
 const LEVEL_COLOR: Record<GapFinding['level'], string> = {
   high: '#E53E3E',
@@ -35,15 +36,7 @@ export default function GapReport() {
             생성 시각 {genDate.toLocaleString('ko-KR')} · 실측 데이터 기준 자동 집계
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          style={{
-            marginLeft: 'auto', padding: '8px 16px', border: 'none', borderRadius: 8,
-            background: 'var(--au-indigo)', color: '#fff', fontSize: 13, fontWeight: 600,
-          }}
-        >
-          🖨️ PDF로 저장
-        </button>
+        <PrintButton style={{ marginLeft: 'auto' }} />
       </div>
 
       <div style={card}>

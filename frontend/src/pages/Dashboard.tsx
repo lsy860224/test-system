@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { dashboardApi, type DashboardSummary } from '@/api/dashboard'
 import { standardApi } from '@/api/standards'
 import { equipmentApi } from '@/api/equipment'
+import { PrintButton } from '@/components/ui/PrintButton'
+import { BarChart } from '@/components/charts/BarChart'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]
@@ -42,12 +44,7 @@ export default function Dashboard() {
             style={{ padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
             {YEARS.map((y) => <option key={y} value={y}>{y}년</option>)}
           </select>
-          <button
-            onClick={() => window.print()}
-            style={{ padding: '5px 14px', border: 'none', borderRadius: 8, background: 'var(--au-indigo)', color: '#fff', fontSize: 13, fontWeight: 600 }}
-          >
-            🖨️ PDF로 저장
-          </button>
+          <PrintButton style={{ padding: '5px 14px' }} />
         </div>
       </div>
 
@@ -181,7 +178,10 @@ export default function Dashboard() {
             </span>
           </div>
         </div>
-        <NcrBarChart trend={ncrTrend} />
+        <BarChart
+          data={ncrTrend.map((t) => ({ key: t.label, label: t.label, a: t.new, b: t.closed }))}
+          config={{ chartH: 80, padT: 14, barW: 14, barGap: 4, groupGap: 20, padL: 8, barFontSize: 9, barLabelGap: 3, groupLabelFontSize: 10, groupLabelY: 16, showTicks: true }}
+        />
       </div>
 
       {/* Row 3: P2 현황 — 장비 / SOP / 외주 시험소 */}
@@ -359,52 +359,6 @@ function DonutGauge({ pct, color, size = 100 }: { pct: number; color: string; si
 }
 
 // 월별 NCR 트렌드 바차트
-function NcrBarChart({ trend }: { trend: Array<{ label: string; new: number; closed: number }> }) {
-  const maxVal = Math.max(...trend.flatMap((t) => [t.new, t.closed]), 1)
-  const chartH = 80
-  const padT = 14 // 막대가 최대치에 닿아도 숫자 라벨이 잘리지 않도록 상단 여백 확보
-  const barW = 14
-  const barGap = 4
-  const groupGap = 20
-  const groupW = barW * 2 + barGap
-  const padL = 8
-  const totalW = padL + trend.length * (groupW + groupGap)
-  const baseY = padT + chartH
-
-  return (
-    <svg viewBox={`0 0 ${totalW} ${padT + chartH + 28}`} width="100%" preserveAspectRatio="xMidYMid meet">
-      {trend.map((t, i) => {
-        const x = padL + i * (groupW + groupGap)
-        const newH = Math.max((t.new / maxVal) * chartH, t.new > 0 ? 3 : 0)
-        const closedH = Math.max((t.closed / maxVal) * chartH, t.closed > 0 ? 3 : 0)
-        return (
-          <g key={t.label}>
-            {/* 신규 바 */}
-            <rect x={x} y={baseY - newH} width={barW} height={newH} fill="#E53E3E" rx={2} />
-            {t.new > 0 && (
-              <text x={x + barW / 2} y={baseY - newH - 3} textAnchor="middle"
-                style={{ fontSize: 9, fill: '#E53E3E', fontFamily: 'inherit' }}>{t.new}</text>
-            )}
-            {/* 완료 바 */}
-            <rect x={x + barW + barGap} y={baseY - closedH} width={barW} height={closedH} fill="#38A169" rx={2} />
-            {t.closed > 0 && (
-              <text x={x + barW + barGap + barW / 2} y={baseY - closedH - 3} textAnchor="middle"
-                style={{ fontSize: 9, fill: '#38A169', fontFamily: 'inherit' }}>{t.closed}</text>
-            )}
-            {/* 월 라벨 */}
-            <text x={x + groupW / 2} y={baseY + 16} textAnchor="middle"
-              style={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'inherit' }}>{t.label}</text>
-            {/* 기준선 */}
-            <line x1={x - groupGap / 2} y1={baseY} x2={x - groupGap / 2} y2={baseY + 4} stroke="#E2E8F0" strokeWidth={1} />
-          </g>
-        )
-      })}
-      {/* 바닥 선 */}
-      <line x1={0} y1={baseY} x2={totalW} y2={baseY} stroke="#E2E8F0" strokeWidth={1} />
-    </svg>
-  )
-}
-
 const card: React.CSSProperties = {
   background: 'var(--surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)',
 }
