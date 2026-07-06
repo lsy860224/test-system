@@ -1,6 +1,8 @@
 import React, { type CSSProperties, useEffect, useState } from 'react'
 import { itemsApi, ITEM_CATEGORIES } from '@/api/items'
 import Button from '@/components/ui/Button'
+import { Overlay } from '@/components/ui/Modal'
+import { FormField as F } from '@/components/ui/FormField'
 
 interface Props {
   itemId: number | null
@@ -80,14 +82,14 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
 
   if (loading) {
     return (
-      <Overlay onClose={onClose} standalone={standalone}>
+      <Overlay onClose={onClose} standalone={standalone} width={560}>
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
       </Overlay>
     )
   }
 
   return (
-    <Overlay onClose={onClose} standalone={standalone}>
+    <Overlay onClose={onClose} standalone={standalone} width={560}>
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 700 }}>{isEdit ? '아이템 수정' : '아이템 등록'}</h3>
@@ -135,43 +137,6 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
         </Button>
       </div>
     </Overlay>
-  )
-}
-
-function Overlay({ children, onClose, standalone }: { children: React.ReactNode; onClose: () => void; standalone?: boolean }) {
-  if (standalone) {
-    return (
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16, width: 560, maxWidth: '95vw',
-        margin: '0 auto', display: 'flex', flexDirection: 'column',
-        border: '1px solid var(--border)',
-      }}>
-        {children}
-      </div>
-    )
-  }
-  return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-    >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16, width: 560, maxWidth: '95vw',
-        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
-      }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function F({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
-  return (
-    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
-      {children}
-    </div>
   )
 }
 

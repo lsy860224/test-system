@@ -5,6 +5,8 @@ import {
 } from '@/api/equipment'
 import { standardApi, type StandardItem } from '@/api/standards'
 import Button from '@/components/ui/Button'
+import { Overlay } from '@/components/ui/Modal'
+import { FormField as F } from '@/components/ui/FormField'
 
 interface Props {
   equipmentId: number | null
@@ -217,7 +219,7 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
 
   if (loading) {
     return (
-      <Overlay wide onClose={onClose}>
+      <Overlay width={860} onClose={onClose}>
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
       </Overlay>
     )
@@ -232,7 +234,7 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
   }, {})
 
   return (
-    <Overlay wide onClose={onClose}>
+    <Overlay width={860} onClose={onClose}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -559,33 +561,6 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
         )}
       </div>
     </Overlay>
-  )
-}
-
-function Overlay({ children, onClose, wide }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
-  return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-    >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16,
-        width: wide ? 860 : 680, maxWidth: '95vw',
-        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
-      }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function F({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
-  return (
-    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
-      {children}
-    </div>
   )
 }
 

@@ -4,6 +4,8 @@ import {
   LAB_TYPES, ORDER_STATUSES, ORDER_STATUS_COLORS,
 } from '@/api/vendor'
 import Button from '@/components/ui/Button'
+import { Overlay } from '@/components/ui/Modal'
+import { FormField as F } from '@/components/ui/FormField'
 
 interface Props {
   vendorId: number | null
@@ -198,14 +200,14 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
 
   if (loading) {
     return (
-      <Overlay onClose={onClose}>
+      <Overlay width={800} onClose={onClose}>
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
       </Overlay>
     )
   }
 
   return (
-    <Overlay onClose={onClose}>
+    <Overlay width={800} onClose={onClose}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -484,32 +486,6 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
         )}
       </div>
     </Overlay>
-  )
-}
-
-function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-    >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16, width: 800, maxWidth: '95vw',
-        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
-      }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function F({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
-  return (
-    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
-      {children}
-    </div>
   )
 }
 

@@ -6,6 +6,8 @@ import { itemsApi, type Item } from '@/api/items'
 import { usersApi, type AppUser } from '@/api/users'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import { Overlay } from '@/components/ui/Modal'
+import { FormField as F } from '@/components/ui/FormField'
 
 interface Props {
   projectId: number | null
@@ -160,14 +162,14 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
 
   if (loading) {
     return (
-      <Overlay onClose={onClose} standalone={standalone}>
+      <Overlay onClose={onClose} standalone={standalone} width={720}>
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
       </Overlay>
     )
   }
 
   return (
-    <Overlay onClose={onClose} standalone={standalone}>
+    <Overlay onClose={onClose} standalone={standalone} width={720}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
@@ -334,43 +336,6 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         </Button>
       </div>
     </Overlay>
-  )
-}
-
-function Overlay({ children, onClose, standalone }: { children: React.ReactNode; onClose: () => void; standalone?: boolean }) {
-  if (standalone) {
-    return (
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16, width: 720, maxWidth: '95vw',
-        margin: '0 auto', display: 'flex', flexDirection: 'column',
-        border: '1px solid var(--border)',
-      }}>
-        {children}
-      </div>
-    )
-  }
-  return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-    >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16, width: 720, maxWidth: '95vw',
-        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
-      }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function F({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
-  return (
-    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
-      {children}
-    </div>
   )
 }
 

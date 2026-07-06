@@ -1,6 +1,7 @@
 import React, { type CSSProperties, useState } from 'react'
 import { scheduleApi } from '@/api/schedules'
 import Button from '@/components/ui/Button'
+import { FormField as F } from '@/components/ui/FormField'
 
 interface Props {
   scheduleId: number
@@ -71,14 +72,6 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
   )
 }
 
-function F({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
-      {children}
-    </div>
-  )
-}
 
 const inp: CSSProperties = {
   width: '100%', padding: '8px 10px', border: '1px solid var(--border)',

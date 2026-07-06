@@ -1,6 +1,8 @@
 import React, { type CSSProperties, useEffect, useState } from 'react'
 import { standardApi, type StandardItem, type StandardCategory } from '@/api/standards'
 import Button from '@/components/ui/Button'
+import { Overlay } from '@/components/ui/Modal'
+import { FormField as F } from '@/components/ui/FormField'
 
 interface Props {
   itemId: number | null
@@ -170,7 +172,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   // ── 로딩 ───────────────────────────────────────────
   if (loading || copyLoading) {
     return (
-      <Overlay onClose={onClose} wide={!isEdit}>
+      <Overlay onClose={onClose} width={isEdit ? 640 : 900}>
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
       </Overlay>
     )
@@ -179,7 +181,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   // ── 수정 모드 ───────────────────────────────────────
   if (isEdit) {
     return (
-      <Overlay onClose={onClose} wide={false}>
+      <Overlay onClose={onClose} width={640}>
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>규격 항목 수정</h3>
@@ -241,7 +243,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   const validCount = rows.filter((r) => r.standard_code.trim() && r.name.trim()).length
 
   return (
-    <Overlay onClose={onClose} wide>
+    <Overlay onClose={onClose} width={900}>
       {/* 헤더 */}
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
         <div>
@@ -385,34 +387,6 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
         </Button>
       </div>
     </Overlay>
-  )
-}
-
-// ── 공통 컴포넌트 ──────────────────────────────────────
-function Overlay({ children, onClose, wide }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
-  return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-    >
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16,
-        width: wide ? 900 : 640, maxWidth: '97vw',
-        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
-      }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function F({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
-  return (
-    <div style={{ gridColumn: span === 2 ? '1 / -1' : undefined }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>{label}</label>
-      {children}
-    </div>
   )
 }
 
