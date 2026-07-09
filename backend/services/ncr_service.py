@@ -81,6 +81,8 @@ def add_comment(db: Session, ncr_id: int, content: str, created_by: int) -> NCRC
 
 def delete_ncr(db: Session, ncr_id: int):
     ncr = get_ncr(db, ncr_id)
+    for att in ncr.attachments:
+        file_helper.delete_upload(att.file_path)
     db.delete(ncr)
     db.commit()
 
