@@ -10,13 +10,17 @@ interface Props {
   onClose: () => void
   onSaved: () => void
   copyFromStdNo?: string
+  initialHeader?: { standard_no?: string; standard_name?: string; revision_no?: string }
 }
 
 // ── 수정 모드용 단일 폼 ────────────────────────────────
 const emptyForm = {
   standard_no: '', standard_name: '', revision_no: '',
   standard_code: '', name: '', category_id: '', test_condition_summary: '', notes: '',
+  source_type: '검토중',
 }
+
+const SOURCE_TYPES = ['자체', '외주', '검토중']
 
 // ── 생성 모드용 행 타입 ────────────────────────────────
 type ItemRow = {
@@ -34,14 +38,19 @@ const mkRow = (): ItemRow => ({
 })
 
 // ── 메인 컴포넌트 ──────────────────────────────────────
-export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStdNo }: Props) {
+export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStdNo, initialHeader }: Props) {
   const isEdit = itemId !== null
+  const isAddToGroup = !isEdit && !!initialHeader && !copyFromStdNo
 
   // 수정 모드 상태
   const [form, setForm, set] = useFormState({ ...emptyForm })
 
   // 생성 모드 상태
-  const [header, setHeader] = useState({ standard_no: '', standard_name: '', revision_no: '' })
+  const [header, setHeader] = useState({
+    standard_no: initialHeader?.standard_no ?? '',
+    standard_name: initialHeader?.standard_name ?? '',
+    revision_no: initialHeader?.revision_no ?? '',
+  })
   const [rows, setRows] = useState<ItemRow[]>([mkRow()])
 
   const [categories, setCategories] = useState<StandardCategory[]>([])
@@ -65,6 +74,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
         category_id: item.category_id != null ? String(item.category_id) : '',
         test_condition_summary: item.test_condition_summary ?? '',
         notes: item.notes ?? '',
+        source_type: item.source_type,
       })
     }).finally(() => setLoading(false))
   }, [itemId])
@@ -132,6 +142,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
           category_id: form.category_id ? Number(form.category_id) : undefined,
           test_condition_summary: form.test_condition_summary || undefined,
           notes: form.notes || undefined,
+          source_type: form.source_type,
         })
         onSaved()
       } catch (err: unknown) {
@@ -186,7 +197,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>규격 항목 수정</h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              규격 항목은 시험 규격 코드 DB입니다. 수행방식·일정·상태는 프로젝트/시험일정에서 관리합니다.
+              규격 항목은 시험 규격 코드 DB입니다. 세부 일정(DV/PV 목표일)은 프로젝트/시험일정에서 관리합니다.
             </p>
           </div>
           <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
@@ -219,6 +230,12 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
             <F label="시험 조건 요약" span={2}>
               <input value={form.test_condition_summary} onChange={(e) => set('test_condition_summary', e.target.value)} style={inp} placeholder="-40°C ~ +85°C, 1000 cycles" />
             </F>
+            <F label="수행방식">
+              <select value={form.source_type} onChange={(e) => set('source_type', e.target.value)} style={inp}>
+                {SOURCE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </F>
+            <div />
             <F label="메모" span={2}>
               <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
                 rows={3} style={{ ...inp, resize: 'vertical' }} placeholder="특이사항, 외주 의뢰 조건 등" />
@@ -248,10 +265,14 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 700 }}>
-            규격 추가{copyFromStdNo && <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>— {copyFromStdNo} 복사</span>}
+            {isAddToGroup ? '시험 항목 추가' : '규격 추가'}
+            {copyFromStdNo && <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>— {copyFromStdNo} 복사</span>}
+            {isAddToGroup && <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>— {header.standard_no || '(미지정)'}</span>}
           </h3>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            규격 정보를 입력 후 항목을 추가하세요. 한 번에 여러 항목을 등록할 수 있습니다.
+            {isAddToGroup
+              ? '이 규격에 새 시험 항목을 추가하세요. 한 번에 여러 항목을 등록할 수 있습니다.'
+              : '규격 정보를 입력 후 항목을 추가하세요. 한 번에 여러 항목을 등록할 수 있습니다.'}
           </p>
         </div>
         <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>

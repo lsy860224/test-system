@@ -11,6 +11,8 @@ from models.vendor import VendorLab
 from models.sop import SOP
 from models.project import Project
 from models.customer import Customer
+from models.item import Item
+from models.user import User
 
 HDR_FILL = PatternFill("solid", fgColor="2B2F82")
 HDR_FONT = Font(color="FFFFFF", bold=True, size=11)
@@ -42,14 +44,14 @@ def generate_full_export(db: Session) -> bytes:
     standards = db.query(StandardItem).filter(StandardItem.is_deleted == False).order_by(StandardItem.standard_no, StandardItem.standard_code).all()
     _write_sheet(
         wb, "규격매트릭스",
-        ["규격 No.", "규격명", "Rev.", "항목 No.", "시험 항목명", "분류", "수행방식", "상태", "우선순위",
+        ["규격 No.", "규격명", "Rev.", "항목 No.", "시험 항목명", "분류", "수행방식", "우선순위",
          "DV 목표일", "DV 완료일", "PV 목표일", "PV 완료일", "메모"],
         [[
             s.standard_no, s.standard_name, s.revision_no, s.standard_code, s.name,
-            categories.get(s.category_id, ""), s.source_type, s.status, s.priority,
+            categories.get(s.category_id, ""), s.source_type, s.priority,
             s.dv_target_date, s.dv_actual_date, s.pv_target_date, s.pv_actual_date, s.notes,
         ] for s in standards],
-        [14, 32, 10, 12, 30, 12, 10, 8, 10, 12, 12, 12, 12, 26],
+        [14, 32, 10, 12, 30, 12, 10, 10, 12, 12, 12, 12, 26],
     )
 
     # ── 장비대장 ────────────────────────────────────────────
@@ -93,23 +95,26 @@ def generate_full_export(db: Session) -> bytes:
         [22, 12, 14, 8, 12, 14, 20, 30, 10],
     )
 
-    # ── SOP ────────────────────────────────────────────────
+    # ── 절차서 ────────────────────────────────────────────────
     sops = db.query(SOP).order_by(SOP.sop_number).all()
+    user_names = {u.id: u.name for u in db.query(User).all()}
     _write_sheet(
-        wb, "SOP",
-        ["SOP No.", "제목", "버전", "분류", "상태", "작성자", "승인자", "발행일", "최근개정일"],
-        [[s.sop_number, s.title, s.version, s.category, s.status, s.owner, s.approved_by, s.issue_date, s.revision_date] for s in sops],
-        [16, 32, 10, 14, 10, 12, 12, 12, 12],
+        wb, "절차서",
+        ["문서번호", "제목", "종류", "버전", "분류", "상태", "작성자", "승인자", "발행일", "최근개정일"],
+        [[s.sop_number, s.title, s.doc_type, s.version, s.category, s.status, s.owner,
+          user_names.get(s.approver_id), s.issue_date, s.revision_date] for s in sops],
+        [16, 32, 12, 10, 14, 10, 12, 12, 12, 12],
     )
 
     # ── 프로젝트 ────────────────────────────────────────────
     cust_names = {c.id: c.name for c in db.query(Customer).all()}
+    item_names = {i.id: i.name for i in db.query(Item).all()}
     projects = db.query(Project).order_by(Project.project_code).all()
     _write_sheet(
         wb, "프로젝트",
-        ["프로젝트 코드", "프로젝트명", "고객사", "부품명", "단계", "상태", "시작일", "목표일", "완료일", "진행률"],
+        ["프로젝트 코드", "프로젝트명", "고객사", "아이템", "단계", "상태", "시작일", "목표일", "완료일", "진행률"],
         [[
-            p.project_code, p.name, cust_names.get(p.customer_id, ""), p.part_name, p.phase, p.status,
+            p.project_code, p.name, cust_names.get(p.customer_id, ""), item_names.get(p.item_id, ""), p.phase, p.status,
             p.start_date, p.target_date, p.actual_date, p.progress_pct,
         ] for p in projects],
         [16, 24, 18, 20, 10, 8, 12, 12, 12, 10],

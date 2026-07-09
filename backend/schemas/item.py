@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Optional
 
 class ItemBase(BaseModel):
-    item_code: Optional[str] = None
     name: str
     category: Optional[str] = None
     spec: Optional[str] = None
@@ -17,6 +16,7 @@ class ItemUpdate(ItemBase):
 
 class ItemOut(ItemBase):
     id: int
+    item_code: Optional[str] = None
     is_active: bool
     created_at: datetime
     model_config = {"from_attributes": True}

@@ -28,8 +28,6 @@ class StandardItem(Base):
     test_condition_summary  = Column(String(200))
     test_condition_detail   = Column(Text)                    # JSON
     source_type             = Column(String(10), default="검토중")  # 자체 | 외주 | 검토중
-    vendor_id               = Column(Integer, ForeignKey("vendors.id"), nullable=True)
-    status                  = Column(String(10), default="대기")  # 대기 | 진행중 | 완료 | 보류
     priority                = Column(String(5), default="Med")   # High | Med | Low
     priority_score          = Column(Integer, default=50)
     dv_target_date          = Column(Date, nullable=True)

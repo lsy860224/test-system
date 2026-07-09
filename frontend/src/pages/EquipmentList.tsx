@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { equipmentApi, type Equipment, type InvestmentRecord, EQ_CATEGORIES, EQ_STATUSES, STATUS_COLORS, expiryColor, expiryLabel } from '@/api/equipment'
+import { SOP_COVERAGE_COLORS } from '@/api/sop'
 import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
 import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
 import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
 import EquipmentForm from '@/pages/EquipmentForm'
+import { useUIStore } from '@/stores/uiStore'
 
 type Tab = '장비 대장' | '투자 로드맵'
 
@@ -44,6 +46,9 @@ export default function EquipmentList() {
   useEffect(() => { setPage(1); load() }, [filterStatus, filterCategory])
   useEffect(() => { if (tab === '투자 로드맵') loadInvestments() }, [tab, filterYear])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${total}개 장비`) }, [total])
+
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
 
@@ -66,10 +71,7 @@ export default function EquipmentList() {
     <div style={{ padding: 28, maxWidth: 1200 }}>
       {/* page header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>장비 관리</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>시험 장비 대장 및 교정 관리</p>
-        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>시험 장비 대장 및 교정 관리</p>
         {tab === '장비 대장' && (
           <Button onClick={() => setFormId(null)}>+ 장비 등록</Button>
         )}
@@ -83,7 +85,7 @@ export default function EquipmentList() {
             fontSize: 13, fontWeight: 600,
             color: tab === t ? 'var(--primary)' : 'var(--text-muted)',
             borderBottom: tab === t ? '2px solid var(--primary)' : '2px solid transparent',
-            marginBottom: -1,
+            marginBottom: -1, whiteSpace: 'nowrap',
           }}>{t}</button>
         ))}
       </div>
@@ -111,11 +113,6 @@ export default function EquipmentList() {
             <Button type="submit" size="sm">검색</Button>
           </form>
 
-          {/* count bar */}
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>
-            총 <strong style={{ color: 'var(--text-primary)' }}>{total}</strong>개 장비
-          </div>
-
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>로딩 중...</div>
           ) : items.length === 0 ? (
@@ -137,6 +134,7 @@ export default function EquipmentList() {
                     <SortableTh label="설치 위치" sortKey="location" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
                     <SortableTh label="담당자" sortKey="manager" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
                     <SortableTh label="교정 만료일" sortKey="days_to_expiry" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
+                    <SortableTh label="절차서" sortKey="sop_status" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
                   </tr>
                 </thead>
                 <tbody>
@@ -148,21 +146,23 @@ export default function EquipmentList() {
                       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover, #F7F8FA)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = '')}
                     >
-                      <td style={{ padding: '10px 12px', fontWeight: 600 }}>{eq.name}</td>
-                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{eq.category ?? '-'}</td>
-                      <td style={{ padding: '10px 12px' }}>{eq.model ?? '-'}</td>
-                      <td style={{ padding: '10px 12px' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, maxWidth: 200 }}>
+                        <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.name}</span>
+                      </td>
+                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{eq.category ?? '-'}</td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>{eq.model ?? '-'}</td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{
-                          padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                          padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
                           background: STATUS_COLORS[eq.status] + '22',
                           color: STATUS_COLORS[eq.status],
                         }}>{eq.status}</span>
                       </td>
-                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>
+                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>
                         {eq.serial_number ?? '-'}
                       </td>
-                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{eq.location ?? '-'}</td>
-                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{eq.manager ?? '-'}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{eq.location ?? '-'}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{eq.manager ?? '-'}</td>
                       <td style={{ padding: '10px 12px' }}>
                         {eq.latest_expiry ? (
                           <div>
@@ -175,6 +175,13 @@ export default function EquipmentList() {
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>-</span>
                         )}
+                      </td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                        <span style={{
+                          padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap',
+                          background: SOP_COVERAGE_COLORS[eq.sop_status] + '22',
+                          color: SOP_COVERAGE_COLORS[eq.sop_status],
+                        }}>{eq.sop_status}</span>
                       </td>
                     </tr>
                   ))}
@@ -259,18 +266,20 @@ export default function EquipmentList() {
                     {filteredInvestments.map((inv) => (
                       <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 600 }}>{inv.year}</td>
-                        <td style={{ padding: '9px 12px' }}>{inv.equipment_name ?? '(미지정)'}</td>
+                        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>{inv.equipment_name ?? '(미지정)'}</td>
                         <td style={{ padding: '9px 12px' }}>
                           <span style={{
                             padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
                             background: '#EBF4FF', color: 'var(--primary)',
                           }}>{inv.invest_type}</span>
                         </td>
-                        <td style={{ padding: '9px 12px' }}>{inv.item_name ?? '-'}</td>
-                        <td style={{ padding: '9px 12px', fontWeight: 600 }}>
+                        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>{inv.item_name ?? '-'}</td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {inv.amount_est != null ? `${inv.amount_est.toLocaleString()}원` : <span style={{ color: 'var(--text-muted)' }}>추정 미입력</span>}
                         </td>
-                        <td style={{ padding: '9px 12px', color: 'var(--text-muted)' }}>{inv.notes ?? '-'}</td>
+                        <td style={{ padding: '9px 12px', color: 'var(--text-muted)', maxWidth: 220 }}>
+                          <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.notes ?? '-'}</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

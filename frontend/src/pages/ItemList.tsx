@@ -4,6 +4,7 @@ import { itemsApi, type Item } from '@/api/items'
 import Table, { type Column, type SortState } from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import { toggleSort, sortByKey } from '@/utils/sort'
+import { useUIStore } from '@/stores/uiStore'
 import ItemForm from './ItemForm'
 
 const FETCH_SIZE = 1000
@@ -28,6 +29,9 @@ export default function ItemList() {
 
   useEffect(() => { load() }, [])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${total}건`) }, [total])
+
   const handleSaved = () => { setFormItemId(undefined); load() }
 
   const sortedItems = sortByKey(items, sort)
@@ -42,10 +46,7 @@ export default function ItemList() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1 }}>
-          아이템 리스트 <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>총 {total}건</span>
-        </h2>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button size="sm" onClick={() => navigate('/items/new')}>+ 아이템 등록</Button>
       </div>
 

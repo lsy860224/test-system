@@ -30,12 +30,9 @@ export default function GapReport() {
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
       {/* 헤더 */}
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>임원 보고 · Gap Analysis 1-Pager</h2>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            생성 시각 {genDate.toLocaleString('ko-KR')} · 실측 데이터 기준 자동 집계
-          </p>
-        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          생성 시각 {genDate.toLocaleString('ko-KR')} · 실측 데이터 기준 자동 집계
+        </p>
         <PrintButton style={{ marginLeft: 'auto' }} />
       </div>
 
@@ -45,7 +42,7 @@ export default function GapReport() {
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{genDate.toLocaleDateString('ko-KR')} 기준</span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18 }}>
-          규격 매트릭스 · 장비 Capability · SOP · NCR 실측 데이터를 기준으로 자동 산출되었습니다. 추정치는 포함하지 않았습니다.
+          규격 매트릭스 · 장비 Capability · 절차서 · NCR 실측 데이터를 기준으로 자동 산출되었습니다. 추정치는 포함하지 않았습니다.
         </p>
 
         {/* 핵심 지표 4개 */}
@@ -54,7 +51,7 @@ export default function GapReport() {
             sub={`확정 ${data.standards.self_count + data.standards.outsource_count} / 전체 ${data.standards.total}건`} />
           <Kpi label="장비 Capability" value={`${data.equipment.capability_pct}%`}
             sub={`미확보 ${data.equipment.uncovered_total}건`} />
-          <Kpi label="SOP 승인율" value={`${data.sop.approved_pct}%`}
+          <Kpi label="절차서 승인율" value={`${data.sop.approved_pct}%`}
             sub={`승인 ${data.sop.approved} / 전체 ${data.sop.total}건`} />
           <Kpi label="NCR 기한초과" value={`${data.ncr.overdue_count}건`}
             sub={`관리 중 ${data.ncr.managed} / 전체 ${data.ncr.total}건`} warn={data.ncr.overdue_count > 0} />

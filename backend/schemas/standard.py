@@ -19,8 +19,6 @@ class StandardItemBase(BaseModel):
     test_condition_summary: Optional[str] = None
     test_condition_detail: Optional[str] = None
     source_type: str = "검토중"
-    vendor_id: Optional[int] = None
-    status: str = "대기"
     priority: str = "Med"
     dv_target_date: Optional[date] = None
     dv_actual_date: Optional[date] = None
@@ -43,14 +41,9 @@ class StandardItemOut(StandardItemBase):
     updated_at: datetime
     category_name: Optional[str] = None
     category_color: Optional[str] = None
+    sop_status: str = "없음"   # 없음/작성중/완료 — 연동된 시험절차서 중 최고 상태
+    sop_count: int = 0
     model_config = {"from_attributes": True}
-
-class StandardStatusPatch(BaseModel):
-    status: str
-
-class StandardBulkStatus(BaseModel):
-    ids: list[int]
-    status: str
 
 class StandardHistoryOut(BaseModel):
     id: int
@@ -63,3 +56,12 @@ class StandardHistoryOut(BaseModel):
 class PaginatedStandardItems(BaseModel):
     total: int
     items: list[StandardItemOut]
+
+class StandardGroupUpdate(BaseModel):
+    old_standard_no: Optional[str] = None   # 현재 규격 No. (그룹 식별자, 미지정 그룹은 None)
+    standard_no: Optional[str] = None
+    standard_name: Optional[str] = None
+    revision_no: Optional[str] = None
+
+class StandardGroupUpdateResult(BaseModel):
+    updated: int

@@ -10,7 +10,7 @@ class TestScopeCreate(BaseModel):
     standard_no: Optional[str] = None
     unit_price: Optional[int] = None
     lead_days: Optional[int] = None
-    accreditation_scope: Optional[str] = None
+    kolas_report: Optional[str] = None  # "가능" | "불가능"
     notes: Optional[str] = None
 
 
@@ -22,7 +22,7 @@ class TestScopeOut(BaseModel):
     standard_no: Optional[str] = None
     unit_price: Optional[int] = None
     lead_days: Optional[int] = None
-    accreditation_scope: Optional[str] = None
+    kolas_report: Optional[str] = None
     notes: Optional[str] = None
     created_at: datetime
 
@@ -30,13 +30,15 @@ class TestScopeOut(BaseModel):
         from_attributes = True
 
 
-# ── 발주 이력 ─────────────────────────────────────────────
+# ── 발주 등록 ─────────────────────────────────────────────
 class OrderCreate(BaseModel):
-    project_name: str
+    project_id: Optional[int] = None  # 단건 시험 요청 발주는 project_id 없이 single_test_request_id만 지정 가능
+    schedule_id: Optional[int] = None  # 연계할 시험 일정 (선택한 프로젝트 소속이어야 함)
+    single_test_request_id: Optional[int] = None  # 단건 시험 요청과 연계
     test_items: Optional[str] = None
     order_date: Optional[date] = None
     due_date: Optional[date] = None
-    status: str = "발주전"
+    status: str = "견적의뢰"
     total_amount: Optional[int] = None
     notes: Optional[str] = None
 
@@ -44,7 +46,15 @@ class OrderCreate(BaseModel):
 class OrderOut(BaseModel):
     id: int
     vendor_id: int
-    project_name: str
+    project_id: Optional[int] = None
+    project_name: Optional[str] = None  # 서비스 레이어에서 프로젝트 조인 후 주입
+    single_test_request_id: Optional[int] = None
+    single_test_request_number: Optional[str] = None  # 서비스 레이어에서 조인 후 주입
+    schedule_id: Optional[int] = None
+    schedule_status: Optional[str] = None       # 서비스 레이어에서 조인 후 주입 (실제 진행 상태, compute_status 기반)
+    schedule_test_type: Optional[str] = None
+    schedule_planned_start: Optional[date] = None
+    schedule_planned_end: Optional[date] = None
     test_items: Optional[str] = None
     order_date: Optional[date] = None
     due_date: Optional[date] = None
@@ -115,5 +125,5 @@ class PriceCompareItem(BaseModel):
     kolas_certified: bool
     unit_price: Optional[int] = None
     lead_days: Optional[int] = None
-    accreditation_scope: Optional[str] = None
+    kolas_report: Optional[str] = None
     notes: Optional[str] = None

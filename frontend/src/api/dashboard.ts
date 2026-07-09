@@ -17,7 +17,8 @@ export interface DashboardSummary {
     completed: number
   }
   projects: {
-    active: number
+    total: number
+    by_status: Record<string, number>
   }
   schedules: {
     expected: number

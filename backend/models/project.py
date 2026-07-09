@@ -22,9 +22,8 @@ class Project(Base):
     item_id      = Column(Integer, ForeignKey("items.id"), nullable=True)
     name         = Column(String(200), nullable=False)
     project_code = Column(String(50), index=True)       # PRJ-2026-001
-    part_name    = Column(String(200))                   # item.name 자동 복사 (표시용, 하위호환)
     phase        = Column(String(10), default="개발")   # RFQ | 개발 | DV | PV | 양산준비 | 양산
-    status       = Column(String(10), default="활성")   # 활성 | 완료 | 보류 | 취소
+    status       = Column(String(10), default="활성")   # 활성 | 완료 | 보류 | 지연 | 취소
     start_date   = Column(Date, nullable=True)
     target_date  = Column(Date, nullable=True)
     actual_date  = Column(Date, nullable=True)

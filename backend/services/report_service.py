@@ -95,14 +95,14 @@ def generate_gap_analysis(db: Session) -> dict:
     if sop_draft + sop_review > 0:
         findings.append({
             "level": "low",
-            "title": f"SOP 초안/검토중 {sop_draft + sop_review}건 (승인율 {sop_approved_pct}%)",
+            "title": f"절차서 초안/검토중 {sop_draft + sop_review}건 (승인율 {sop_approved_pct}%)",
             "detail": "속인성 제거를 위해 표준화가 필요한 시험 절차입니다. 승인 완료 시점을 관리하세요.",
         })
     if not findings:
         findings.append({
             "level": "low",
             "title": "현재 등록된 데이터 기준 주요 Gap 없음",
-            "detail": "규격/장비/SOP/NCR 전 항목이 임계값 이내로 관리되고 있습니다.",
+            "detail": "규격/장비/절차서/NCR 전 항목이 임계값 이내로 관리되고 있습니다.",
         })
 
     return {

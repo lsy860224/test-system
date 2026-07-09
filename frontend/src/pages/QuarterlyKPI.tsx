@@ -23,10 +23,7 @@ export default function QuarterlyKPI() {
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
       {/* 헤더 */}
       <div className="no-print" style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>임원 보고 · 분기별 KPI 집계</h2>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>실제 발생일 기준 활동 지표 · 추정치 미포함</p>
-        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>실제 발생일 기준 활동 지표 · 추정치 미포함</p>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}
             style={{ padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
@@ -39,7 +36,7 @@ export default function QuarterlyKPI() {
       <div style={card}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--au-indigo)', marginBottom: 4 }}>{data.year}년 분기별 KPI</h1>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
-          규격 DV/PV 완료, 시험 일정 완료, 교정 수행, SOP 승인, NCR 신규/완료 건수를 분기 단위로 집계했습니다.
+          규격 DV/PV 완료, 시험 일정 완료, 교정 수행, 절차서 승인, NCR 신규/완료 건수를 분기 단위로 집계했습니다.
           과거 시점의 커버리지·Capability 스냅샷은 저장하지 않으므로 포함하지 않았습니다.
         </p>
 
@@ -65,7 +62,7 @@ export default function QuarterlyKPI() {
               <KpiRow label="시험 일정 완료" values={data.quarters.map((q) => `${q.schedule_completed}건`)} />
               <KpiRow label="시험 합격률" values={data.quarters.map((q) => q.schedule_pass_rate == null ? '-' : `${q.schedule_pass_rate}%`)} />
               <KpiRow label="장비 교정 수행" values={data.quarters.map((q) => `${q.calibration_count}건`)} />
-              <KpiRow label="SOP 승인" values={data.quarters.map((q) => `${q.sop_approved}건`)} />
+              <KpiRow label="절차서 승인" values={data.quarters.map((q) => `${q.sop_approved}건`)} />
               <KpiRow label="NCR 신규" values={data.quarters.map((q) => `${q.ncr_new}건`)} />
               <KpiRow label="NCR 완료" values={data.quarters.map((q) => `${q.ncr_closed}건`)} />
             </tbody>

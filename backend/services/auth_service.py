@@ -26,6 +26,13 @@ def login(db: Session, username: str, password: str) -> dict:
     token = create_access_token(user.id, user.username)
     return {"access_token": token, "token_type": "bearer", "user_id": user.id, "name": user.name, "role": user.role}
 
+def change_password(db: Session, user: User, current_password: str, new_password: str):
+    if not verify_password(current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 올바르지 않습니다")
+    user.password_hash = hash_password(new_password)
+    db.commit()
+
+
 def seed_admin(db: Session):
     existing = db.query(User).filter(User.username == "admin").first()
     if not existing:

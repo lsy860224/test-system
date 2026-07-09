@@ -13,7 +13,6 @@ export interface StandardItem {
   category_color?: string
   test_condition_summary?: string
   source_type: string
-  status: string
   priority: string
   priority_score: number
   dv_target_date?: string
@@ -23,6 +22,8 @@ export interface StandardItem {
   assignee_id?: number
   notes?: string
   is_deleted: boolean
+  sop_status: string
+  sop_count: number
   created_at: string
   updated_at: string
 }
@@ -34,10 +35,17 @@ export interface StandardCategory {
   color_hex: string
 }
 
+export interface StandardGroupUpdate {
+  old_standard_no?: string
+  standard_no?: string
+  standard_name?: string
+  revision_no?: string
+}
+
 export const standardApi = {
   categories: () => client.get<StandardCategory[]>('/standards/categories').then((r) => r.data),
 
-  list: (params: { page?: number; size?: number; category_id?: number; status?: string; source_type?: string; search?: string }) =>
+  list: (params: { page?: number; size?: number; category_id?: number; source_type?: string; search?: string }) =>
     client.get<{ total: number; items: StandardItem[] }>('/standards/', { params }).then((r) => r.data),
 
   get: (id: number) => client.get<StandardItem>(`/standards/${id}`).then((r) => r.data),
@@ -46,15 +54,12 @@ export const standardApi = {
 
   update: (id: number, data: Partial<StandardItem>) => client.put<StandardItem>(`/standards/${id}`, data).then((r) => r.data),
 
-  patchStatus: (id: number, status: string) =>
-    client.patch<StandardItem>(`/standards/${id}/status`, { status }).then((r) => r.data),
-
   delete: (id: number) => client.delete(`/standards/${id}`),
 
-  bulkStatus: (ids: number[], status: string) =>
-    client.post<StandardItem[]>('/standards/bulk-status', { ids, status }).then((r) => r.data),
-
   history: (id: number) => client.get(`/standards/${id}/history`).then((r) => r.data),
+
+  updateGroupInfo: (data: StandardGroupUpdate) =>
+    client.put<{ updated: number }>('/standards/group-info', data).then((r) => r.data),
 
   importExcel: async (file: File): Promise<{ created: number; skipped: number; errors: string[] }> => {
     const form = new FormData()

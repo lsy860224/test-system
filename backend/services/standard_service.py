@@ -4,19 +4,17 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.standard import StandardItem, StandardCategory, StandardHistory
 from schemas.standard import StandardItemCreate, StandardItemUpdate
-from services import pagination_helper
+from services import pagination_helper, sop_coverage
 
 # ── categories ─────────────────────────────────────────────
 def list_categories(db: Session) -> list:
     return db.query(StandardCategory).order_by(StandardCategory.display_order).all()
 
 # ── items ───────────────────────────────────────────────────
-def list_items(db: Session, page: int, size: int, category_id, status, source_type, search) -> dict:
+def list_items(db: Session, page: int, size: int, category_id, source_type, search) -> dict:
     q = db.query(StandardItem).filter(StandardItem.is_deleted == False)
     if category_id:
         q = q.filter(StandardItem.category_id == category_id)
-    if status:
-        q = q.filter(StandardItem.status == status)
     if source_type:
         q = q.filter(StandardItem.source_type == source_type)
     if search:
@@ -28,12 +26,14 @@ def list_items(db: Session, page: int, size: int, category_id, status, source_ty
         )
     result = pagination_helper.paginate(q.order_by(StandardItem.standard_code), page, size)
     result["items"] = attach_category_names(db, result["items"])
+    attach_sop_coverage(db, result["items"])
     return result
 
 def get_item(db: Session, item_id: int) -> StandardItem:
     item = db.query(StandardItem).filter(StandardItem.id == item_id, StandardItem.is_deleted == False).first()
     if not item:
         raise HTTPException(status_code=404, detail="규격 항목을 찾을 수 없습니다")
+    attach_sop_coverage(db, [item])
     return item
 
 def create_item(db: Session, body: StandardItemCreate, created_by: int) -> StandardItem:
@@ -55,29 +55,33 @@ def update_item(db: Session, item_id: int, body: StandardItemUpdate, changed_by:
     db.refresh(item)
     return item
 
-def patch_status(db: Session, item_id: int, new_status: str, changed_by: int) -> StandardItem:
-    item = get_item(db, item_id)
-    history = StandardHistory(standard_item_id=item.id, field_name="status", old_value=item.status, new_value=new_status, changed_by=changed_by)
-    item.status = new_status
-    item.updated_at = datetime.utcnow()
-    db.add(history)
+def update_group_info(db: Session, body, changed_by: int) -> dict:
+    """규격 그룹(standard_no 동일 항목 전체)의 기본 정보(규격 No./규격명/Revision No.)를 일괄 수정."""
+    q = db.query(StandardItem).filter(StandardItem.is_deleted == False)
+    q = q.filter(StandardItem.standard_no == body.old_standard_no) if body.old_standard_no else q.filter(StandardItem.standard_no.is_(None))
+    items = q.all()
+    if not items:
+        raise HTTPException(status_code=404, detail="해당 규격 그룹을 찾을 수 없습니다")
+
+    updates = {
+        "standard_no": body.standard_no or None,
+        "standard_name": body.standard_name,
+        "revision_no": body.revision_no,
+    }
+    for item in items:
+        changes = _track_changes(item, updates, changed_by)
+        for field, value in updates.items():
+            setattr(item, field, value)
+        item.updated_at = datetime.utcnow()
+        for h in changes:
+            db.add(h)
     db.commit()
-    db.refresh(item)
-    return item
+    return {"updated": len(items)}
 
 def soft_delete(db: Session, item_id: int):
     item = get_item(db, item_id)
     item.is_deleted = True
     db.commit()
-
-def bulk_patch_status(db: Session, ids: list[int], new_status: str, changed_by: int) -> list:
-    items = db.query(StandardItem).filter(StandardItem.id.in_(ids), StandardItem.is_deleted == False).all()
-    for item in items:
-        db.add(StandardHistory(standard_item_id=item.id, field_name="status", old_value=item.status, new_value=new_status, changed_by=changed_by))
-        item.status = new_status
-        item.updated_at = datetime.utcnow()
-    db.commit()
-    return items
 
 def get_history(db: Session, item_id: int) -> list:
     get_item(db, item_id)
@@ -151,7 +155,10 @@ def import_from_excel(db: Session, file_bytes: bytes, created_by: int) -> dict:
     """
     import openpyxl
 
-    wb = openpyxl.load_workbook(BytesIO(file_bytes))
+    try:
+        wb = openpyxl.load_workbook(BytesIO(file_bytes))
+    except Exception:
+        raise HTTPException(status_code=400, detail="올바른 Excel(.xlsx) 파일이 아니거나 파일이 손상되었습니다")
     ws = wb.active
 
     cats = {c.code.upper(): c.id for c in db.query(StandardCategory).all()}
@@ -210,6 +217,14 @@ def attach_category_names(db: Session, items: list) -> list:
         cat = cats.get(item.category_id)
         item.category_name = cat.name_ko if cat else None
         item.category_color = cat.color_hex if cat else None
+    return items
+
+def attach_sop_coverage(db: Session, items: list) -> list:
+    coverage = sop_coverage.get_standard_coverage(db, [item.id for item in items])
+    for item in items:
+        c = coverage.get(item.id, {"status": "없음", "count": 0})
+        item.sop_status = c["status"]
+        item.sop_count = c["count"]
     return items
 
 def _track_changes(item: StandardItem, updates: dict, changed_by: int) -> list:

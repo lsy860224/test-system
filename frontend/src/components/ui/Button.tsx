@@ -34,6 +34,7 @@ export default function Button({ variant = 'primary', size = 'md', loading, chil
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
+        whiteSpace: 'nowrap',
         transition: 'opacity 0.15s',
         ...style,
       }}

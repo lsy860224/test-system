@@ -53,9 +53,9 @@ export const scheduleApi = {
   recordResult: (id: number, result: string, actual_end: string | undefined, data_path: string) =>
     client.patch(`/schedules/${id}/result`, { result, actual_end, data_path }).then((r) => r.data),
 
-  delete: (id: number) => client.delete(`/schedules/${id}`),
+  retest: (id: number) => client.post(`/schedules/${id}/retest`).then((r) => r.data),
 
-  vendors: () => client.get('/schedules/vendors/').then((r) => r.data),
+  delete: (id: number) => client.delete(`/schedules/${id}`),
 
   gantt: (params: { project_id?: number; status?: string } = {}) =>
     client.get<GanttData>('/schedules/gantt', { params }).then((r) => r.data),

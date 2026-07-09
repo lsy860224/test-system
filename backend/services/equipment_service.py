@@ -6,7 +6,16 @@ from io import BytesIO
 
 from models.equipment import Equipment, EquipmentCalibration, EquipmentStandardMapping, EquipmentInvestment
 from schemas.equipment import EquipmentCreate, EquipmentUpdate, CalibrationCreate, InvestmentCreate
-from services import pagination_helper
+from services import pagination_helper, sop_coverage
+
+
+def _attach_sop_coverage(db: Session, items: list[Equipment]) -> list[Equipment]:
+    coverage = sop_coverage.get_equipment_coverage(db, [item.id for item in items])
+    for item in items:
+        c = coverage.get(item.id, {"status": "없음", "count": 0})
+        item.sop_status = c["status"]
+        item.sop_count = c["count"]
+    return items
 
 
 def _attach_expiry(item: Equipment) -> Equipment:
@@ -42,6 +51,7 @@ def list_equipment(
     result = pagination_helper.paginate(q.order_by(Equipment.name), page, size)
     for item in result["items"]:
         _attach_expiry(item)
+    _attach_sop_coverage(db, result["items"])
     return result
 
 
@@ -58,6 +68,7 @@ def get_equipment(db: Session, eq_id: int) -> Equipment:
     if not item:
         raise HTTPException(status_code=404, detail="장비를 찾을 수 없습니다")
     _attach_expiry(item)
+    _attach_sop_coverage(db, [item])
     return item
 
 

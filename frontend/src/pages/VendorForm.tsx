@@ -1,8 +1,10 @@
 import React, { type CSSProperties, useEffect, useState } from 'react'
 import {
   vendorApi, type VendorLab, type TestScope, type VendorOrder,
-  LAB_TYPES, ORDER_STATUSES, ORDER_STATUS_COLORS,
+  LAB_TYPES, KOLAS_REPORT_OPTIONS, ORDER_STATUSES, ORDER_STATUS_COLORS, ORDER_STATUS_DESCRIPTIONS,
 } from '@/api/vendor'
+import { projectsApi, type ProjectItem } from '@/api/projects'
+import { scheduleApi } from '@/api/schedules'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
@@ -17,6 +19,13 @@ interface Props {
 
 type Tab = '기본정보' | '단가표' | '발주이력'
 
+interface ScheduleOption {
+  id: number
+  test_type: string
+  standard_name?: string
+  display_status?: string
+}
+
 const emptyForm = {
   name: '', short_name: '', lab_type: '', kolas_certified: false,
   contact_name: '', contact_phone: '', contact_email: '',
@@ -25,13 +34,13 @@ const emptyForm = {
 
 const emptyScopeForm = {
   test_name: '', standard_no: '', unit_price: '',
-  lead_days: '', accreditation_scope: '', notes: '',
+  lead_days: '', kolas_report: '', notes: '',
 }
 
 const emptyOrderForm = {
-  project_name: '', test_items: '',
+  project_id: '', schedule_id: '', test_items: '',
   order_date: new Date().toISOString().slice(0, 10),
-  due_date: '', status: '발주전', total_amount: '', notes: '',
+  due_date: '', status: '견적의뢰', total_amount: '', notes: '',
 }
 
 export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: Props) {
@@ -57,6 +66,18 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   const [orderForm, setOrderForm] = useState({ ...emptyOrderForm })
   const [editOrderId, setEditOrderId] = useState<number | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
+  const [projects, setProjects] = useState<ProjectItem[]>([])
+  const [schedules, setSchedules] = useState<ScheduleOption[]>([])
+
+  useEffect(() => {
+    projectsApi.list({ size: 200 }).then((r) => setProjects(r.items))
+  }, [])
+
+  useEffect(() => {
+    if (!orderForm.project_id) { setSchedules([]); return }
+    scheduleApi.list({ project_id: Number(orderForm.project_id), size: 200 })
+      .then((r) => setSchedules(r.items as unknown as ScheduleOption[]))
+  }, [orderForm.project_id])
 
   useEffect(() => {
     if (!isEdit || !vendorId) return
@@ -117,7 +138,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
         standard_no: scopeForm.standard_no || null,
         unit_price: scopeForm.unit_price ? Number(scopeForm.unit_price) : null,
         lead_days: scopeForm.lead_days ? Number(scopeForm.lead_days) : null,
-        accreditation_scope: scopeForm.accreditation_scope || null,
+        kolas_report: scopeForm.kolas_report || null,
         notes: scopeForm.notes || null,
       }
       if (editScopeId !== null) {
@@ -146,7 +167,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
       test_name: s.test_name, standard_no: s.standard_no ?? '',
       unit_price: s.unit_price != null ? String(s.unit_price) : '',
       lead_days: s.lead_days != null ? String(s.lead_days) : '',
-      accreditation_scope: s.accreditation_scope ?? '', notes: s.notes ?? '',
+      kolas_report: s.kolas_report ?? '', notes: s.notes ?? '',
     })
     setShowScopeForm(true)
   }
@@ -154,11 +175,12 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   // ── 발주이력 저장 ──────────────────────────────────────
   const handleSaveOrder = async () => {
     if (!vendorId) return
-    if (!orderForm.project_name.trim()) { alert('프로젝트명을 입력하세요'); return }
+    if (!orderForm.project_id) { alert('프로젝트를 선택하세요'); return }
     setSavingOrder(true)
     try {
       const payload = {
-        project_name: orderForm.project_name.trim(),
+        project_id: Number(orderForm.project_id),
+        schedule_id: orderForm.schedule_id ? Number(orderForm.schedule_id) : null,
         test_items: orderForm.test_items || null,
         order_date: orderForm.order_date || null,
         due_date: orderForm.due_date || null,
@@ -189,7 +211,9 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   const openEditOrder = (o: VendorOrder) => {
     setEditOrderId(o.id)
     setOrderForm({
-      project_name: o.project_name, test_items: o.test_items ?? '',
+      project_id: o.project_id != null ? String(o.project_id) : '',
+      schedule_id: o.schedule_id != null ? String(o.schedule_id) : '',
+      test_items: o.test_items ?? '',
       order_date: o.order_date ?? '', due_date: o.due_date ?? '',
       status: o.status,
       total_amount: o.total_amount != null ? String(o.total_amount) : '',
@@ -228,6 +252,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
               fontSize: 13, fontWeight: 600,
               color: tab === t ? 'var(--primary)' : 'var(--text-muted)',
               borderBottom: tab === t ? '2px solid var(--primary)' : '2px solid transparent',
+              whiteSpace: 'nowrap',
             }}>{t}</button>
           ))}
         </div>
@@ -311,9 +336,11 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
                     <input value={scopeForm.standard_no} onChange={(e) => setScope('standard_no', e.target.value)}
                       style={inp} placeholder="ISO 16750-4" />
                   </F>
-                  <F label="KOLAS 인정 범위">
-                    <input value={scopeForm.accreditation_scope} onChange={(e) => setScope('accreditation_scope', e.target.value)}
-                      style={inp} placeholder="KAB-T-0123" />
+                  <F label="KOLAS 공인 성적서">
+                    <select value={scopeForm.kolas_report} onChange={(e) => setScope('kolas_report', e.target.value)} style={inp}>
+                      <option value="">-- 선택 --</option>
+                      {KOLAS_REPORT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
                   </F>
                   <F label="단가 (원)">
                     <input type="number" value={scopeForm.unit_price} onChange={(e) => setScope('unit_price', e.target.value)}
@@ -342,7 +369,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['시험 항목명', '적용 규격', 'KOLAS 인정', '단가', '납기', ''].map((h) => (
+                    {['시험 항목명', '적용 규격', 'KOLAS 공인 성적서', '단가', '납기', ''].map((h) => (
                       <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11 }}>{h}</th>
                     ))}
                   </tr>
@@ -352,7 +379,15 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
                     <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={td}><strong>{s.test_name}</strong></td>
                       <td style={{ ...td, color: 'var(--text-muted)' }}>{s.standard_no ?? '-'}</td>
-                      <td style={td}>{s.accreditation_scope ?? '-'}</td>
+                      <td style={td}>
+                        {s.kolas_report ? (
+                          <span style={{
+                            padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                            background: s.kolas_report === '가능' ? '#E6FFEE' : '#FFF5F5',
+                            color: s.kolas_report === '가능' ? '#38A169' : '#E53E3E',
+                          }}>{s.kolas_report}</span>
+                        ) : '-'}
+                      </td>
                       <td style={{ ...td, fontWeight: 600 }}>
                         {s.unit_price != null ? `${s.unit_price.toLocaleString()}원` : <span style={{ color: 'var(--text-muted)' }}>-</span>}
                       </td>
@@ -387,8 +422,27 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                   <F label="프로젝트명 *">
-                    <input value={orderForm.project_name} onChange={(e) => setOrder('project_name', e.target.value)}
-                      style={inp} placeholder="IVI 온도충격 DV 시험" />
+                    <select value={orderForm.project_id}
+                      onChange={(e) => { setOrder('project_id', e.target.value); setOrder('schedule_id', '') }} style={inp}>
+                      <option value="">-- 선택 --</option>
+                      {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </F>
+                  <F label="연계 시험 일정">
+                    <select value={orderForm.schedule_id} onChange={(e) => setOrder('schedule_id', e.target.value)}
+                      style={inp} disabled={!orderForm.project_id}>
+                      <option value="">-- 선택 안 함 --</option>
+                      {schedules.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          [{s.test_type}] {s.standard_name ?? ''} ({s.display_status})
+                        </option>
+                      ))}
+                    </select>
+                    {orderForm.schedule_id && (
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        연계된 시험 일정이 진행중/완료 상태가 되면 발주 상태가 자동으로 맞춰집니다
+                      </p>
+                    )}
                   </F>
                   <F label="발주일">
                     <input type="date" value={orderForm.order_date} onChange={(e) => setOrder('order_date', e.target.value)} style={inp} />
@@ -400,6 +454,11 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
                     <select value={orderForm.status} onChange={(e) => setOrder('status', e.target.value)} style={inp}>
                       {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
+                    {orderForm.status && (
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        {ORDER_STATUS_DESCRIPTIONS[orderForm.status]}
+                      </p>
+                    )}
                   </F>
                   <F label="총 금액 (원)">
                     <input type="number" value={orderForm.total_amount} onChange={(e) => setOrder('total_amount', e.target.value)}
@@ -433,7 +492,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['프로젝트명', '발주일', '납기일', '상태', '금액', ''].map((h) => (
+                    {['프로젝트명', '연계 시험 일정', '발주일', '납기일', '상태', '금액', ''].map((h) => (
                       <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11 }}>{h}</th>
                     ))}
                   </tr>
@@ -442,6 +501,11 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
                   {orders.map((o) => (
                     <tr key={o.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={td}><strong>{o.project_name}</strong></td>
+                      <td style={{ ...td, color: 'var(--text-muted)' }}>
+                        {o.schedule_id != null ? (
+                          <span>{o.schedule_test_type ? `[${o.schedule_test_type}] ` : ''}{o.schedule_status ?? '-'}</span>
+                        ) : '-'}
+                      </td>
                       <td style={{ ...td, color: 'var(--text-muted)' }}>{o.order_date ?? '-'}</td>
                       <td style={{ ...td, color: 'var(--text-muted)' }}>{o.due_date ?? '-'}</td>
                       <td style={td}>

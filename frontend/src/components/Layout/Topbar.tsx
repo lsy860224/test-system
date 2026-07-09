@@ -1,23 +1,30 @@
+import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import NotificationBell from './NotificationBell'
+import ProfileMenu from './ProfileMenu'
 
 const TITLES: Record<string, string> = {
   '/dashboard': '대시보드',
-  '/es-matrix': '규격 매트릭스',
+  '/standards': '규격 매트릭스',
   '/schedule': '시험 일정',
   '/ncr': 'NCR 추적',
-  '/customers': '업체 등록',
-  '/items': '아이템 등록',
-  '/users': '담당자 관리',
-  '/projects': '프로젝트 관리',
+  '/workload': '업무 분배',
   '/equipment': '장비 관리',
   '/vendors': '외주 시험소',
-  '/sop': 'SOP 관리',
-  '/reports/gap-analysis': '임원 보고 · Gap Analysis',
-  '/reports/quarterly-kpi': '임원 보고 · 분기별 KPI',
+  '/sop': '절차서 관리',
+  '/users': '사용자 관리',
   '/export': '데이터 내보내기',
+  '/customers': '정보 관리 : 업체 리스트',
+  '/projects': '정보 관리 : 프로젝트 리스트',
+  '/items': '정보 관리 : 아이템 리스트',
+  '/reports/gap-analysis': '임원 보고 : Gap Analysis',
+  '/reports/quarterly-kpi': '임원 보고 : 분기별 KPI',
+  '/customers/new': '정보 입력 : 업체 등록',
+  '/projects/new': '정보 입력 : 프로젝트 등록',
+  '/items/new': '정보 입력 : 아이템 등록',
+  '/vendors/registry': '정보 입력 : 외주 시험소 등록',
 }
 
 export default function Topbar() {
@@ -25,8 +32,12 @@ export default function Topbar() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const pageCountLabel = useUIStore((s) => s.pageCountLabel)
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
 
   const title = TITLES[location.pathname] ?? ''
+
+  useEffect(() => { setPageCountLabel(null) }, [location.pathname])
 
   const handleLogout = () => {
     logout()
@@ -51,12 +62,17 @@ export default function Topbar() {
       >
         ☰
       </button>
-      <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>{title}</span>
+      <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
+        {title}
+        {pageCountLabel && (
+          <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--text-muted)', marginLeft: 10 }}>{pageCountLabel}</span>
+        )}
+      </span>
       <div style={{ flex: 1 }} />
       {user && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <NotificationBell />
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user.name}</span>
+          <ProfileMenu />
           <button
             onClick={handleLogout}
             style={{

@@ -3,6 +3,7 @@ import { vendorApi, type VendorLab, LAB_TYPES } from '@/api/vendor'
 import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
 import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
+import { useUIStore } from '@/stores/uiStore'
 import VendorForm from '@/pages/VendorForm'
 
 const FETCH_SIZE = 1000
@@ -32,6 +33,9 @@ export default function VendorRegistry() {
 
   useEffect(() => { setPage(1); load() }, [filterType, filterKolas])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${total}개 시험소`) }, [total])
+
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
 
@@ -42,12 +46,9 @@ export default function VendorRegistry() {
   return (
     <div style={{ padding: 28, maxWidth: 1100 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>외주 시험소 등록</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-            시험소 마스터 정보(명칭·연락처·KOLAS 인정)를 등록·관리합니다. 단가표·발주이력·단가비교는 '외주 시험소' 메뉴에서 다룹니다.
-          </p>
-        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          시험소 마스터 정보(명칭·연락처·KOLAS 인정)를 등록·관리합니다. 단가표·발주이력·단가비교는 '외주 시험소' 메뉴에서 다룹니다.
+        </p>
         <Button onClick={() => setFormId(null)}>+ 시험소 등록</Button>
       </div>
 
@@ -62,16 +63,12 @@ export default function VendorRegistry() {
           <option value="">전체 유형</option>
           {LAB_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
           <input type="checkbox" checked={filterKolas} onChange={(e) => { setFilterKolas(e.target.checked); setPage(1) }} />
           KOLAS만 보기
         </label>
         <Button type="submit" size="sm">검색</Button>
       </form>
-
-      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>
-        총 <strong style={{ color: 'var(--text-primary)' }}>{total}</strong>개 시험소
-      </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>로딩 중...</div>
@@ -102,7 +99,9 @@ export default function VendorRegistry() {
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover, #F7F8FA)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '')}
               >
-                <td style={{ padding: '10px 12px', fontWeight: 600 }}>{v.name}</td>
+                <td style={{ padding: '10px 12px', fontWeight: 600, maxWidth: 200 }}>
+                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                </td>
                 <td style={{ padding: '10px 12px' }}>
                   {v.short_name ? (
                     <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#EBF4FF', color: 'var(--primary)' }}>
@@ -110,14 +109,14 @@ export default function VendorRegistry() {
                     </span>
                   ) : '-'}
                 </td>
-                <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{v.lab_type ?? '-'}</td>
+                <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{v.lab_type ?? '-'}</td>
                 <td style={{ padding: '10px 12px' }}>
                   {v.kolas_certified ? (
                     <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#E6FFEE', color: '#38A169' }}>KOLAS</span>
                   ) : '-'}
                 </td>
-                <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{v.contact_name ?? '-'}</td>
-                <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{v.contact_phone ?? '-'}</td>
+                <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{v.contact_name ?? '-'}</td>
+                <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{v.contact_phone ?? '-'}</td>
               </tr>
             ))}
           </tbody>

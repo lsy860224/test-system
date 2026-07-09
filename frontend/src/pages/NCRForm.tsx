@@ -249,7 +249,7 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
               fontWeight: tab === t ? 700 : 400,
               color: tab === t ? 'var(--au-blue)' : 'var(--text-secondary)',
               borderBottom: tab === t ? '2px solid var(--au-blue)' : '2px solid transparent',
-              marginBottom: -1,
+              marginBottom: -1, whiteSpace: 'nowrap',
             }}>{tabLabel(t)}</button>
           ))}
         </div>

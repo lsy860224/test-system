@@ -23,10 +23,16 @@ import WorkAssignment from '@/pages/WorkAssignment'
 import ProjectCreatePage from '@/pages/ProjectCreatePage'
 import CustomerCreatePage from '@/pages/customers/CustomerCreatePage'
 import UserManagement from '@/pages/UserManagement'
+import SingleTestRequest from '@/pages/SingleTestRequest'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
   return token ? <>{children}</> : <Navigate to="/login" replace />
+}
+
+function HomeRedirect() {
+  const role = useAuthStore((s) => s.user?.role)
+  return <Navigate to={role === '의뢰자' ? '/single-tests' : '/dashboard'} replace />
 }
 
 export default function App() {
@@ -42,11 +48,12 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<HomeRedirect />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="standards" element={<StandardMatrix />} />
           <Route path="schedule" element={<Schedule />} />
           <Route path="ncr" element={<NCR />} />
+          <Route path="single-tests" element={<SingleTestRequest />} />
           <Route path="workload" element={<WorkAssignment />} />
           <Route path="customers" element={<CustomerList />} />
           <Route path="customers/new" element={<CustomerCreatePage />} />

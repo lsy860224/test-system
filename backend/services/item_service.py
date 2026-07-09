@@ -19,6 +19,8 @@ def get_item(db: Session, item_id: int) -> Item:
 def create_item(db: Session, body: ItemCreate) -> Item:
     item = Item(**body.model_dump(), is_active=True)
     db.add(item)
+    db.flush()
+    item.item_code = f"ITEM-{item.id:04d}"
     db.commit()
     db.refresh(item)
     return item

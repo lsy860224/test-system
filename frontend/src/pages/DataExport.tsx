@@ -19,7 +19,6 @@ export default function DataExport() {
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>데이터 내보내기</h2>
         <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>전체 모듈 Excel 일괄 다운로드 · 모듈별 PDF 보고서</p>
       </div>
 
@@ -29,7 +28,7 @@ export default function DataExport() {
           <div style={iconBox('#2B2F82')}>📊</div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>전체 모듈 Excel 내보내기</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>규격 매트릭스 · 장비대장 · 시험일정 · NCR · 외주시험소 · SOP · 프로젝트 · 업체 — 8개 시트 단일 워크북</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>규격 매트릭스 · 장비대장 · 시험일정 · NCR · 외주시험소 · 절차서 · 프로젝트 · 업체 — 8개 시트 단일 워크북</div>
           </div>
         </div>
         <button
@@ -58,7 +57,7 @@ export default function DataExport() {
           {[
             { label: '시험평가팀 현황 대시보드', desc: '전 모듈 요약 · 규격/장비/NCR/일정 현황판', path: '/dashboard' },
             { label: 'Gap Analysis 1-Pager', desc: 'HKMC 양산 진입 Gap 판정 · 임원 보고용', path: '/reports/gap-analysis' },
-            { label: '분기별 KPI', desc: 'DV/PV·시험·교정·SOP·NCR 분기 활동 지표', path: '/reports/quarterly-kpi' },
+            { label: '분기별 KPI', desc: 'DV/PV·시험·교정·절차서·NCR 분기 활동 지표', path: '/reports/quarterly-kpi' },
           ].map((item) => (
             <a key={item.path} href={item.path} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',

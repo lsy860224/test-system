@@ -51,7 +51,7 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
     >
       <div style={{ background: 'var(--surface)', borderRadius: 16, width: 440, maxWidth: '95vw', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700 }}>{isEdit ? '담당자 계정 수정' : '담당자 계정 등록'}</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700 }}>{isEdit ? '사용자 계정 수정' : '사용자 계정 등록'}</h3>
           <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>

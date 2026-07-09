@@ -1,13 +1,15 @@
-from datetime import date
+from datetime import date, timedelta
 from fastapi import HTTPException
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
-from models.schedule import TestSchedule, Vendor
+from models.schedule import TestSchedule
 from models.project import Project
 from models.standard import StandardItem
 from models.customer import Customer
 from models.item import Item
-from schemas.schedule import TestScheduleCreate, TestScheduleUpdate, TestScheduleResultPatch, VendorCreate
+from models.vendor import VendorOrder
+from models.ncr import NCRReport
+from schemas.schedule import TestScheduleCreate, TestScheduleUpdate, TestScheduleResultPatch
 from services import pagination_helper
 
 STATUS_KEYS = ["계획", "준비중", "진행중", "완료", "지연", "취소"]
@@ -33,6 +35,27 @@ def compute_status(schedule: TestSchedule) -> str:
     return "준비중"
 
 
+def _sync_vendor_orders(db: Session, schedule: TestSchedule) -> None:
+    """연계된 발주의 상태를 시험 일정 실제 진행 상태에 맞춰 갱신한다.
+    진행중/완료만 자동 반영 — 취소는 비용 문제가 걸려 있어 발주 쪽에서 수동으로만 처리한다."""
+    display_status = compute_status(schedule)
+    target = {"진행중": "진행중", "완료": "완료"}.get(display_status)
+    if not target:
+        return
+    orders = db.query(VendorOrder).filter(VendorOrder.schedule_id == schedule.id).all()
+    changed = False
+    for o in orders:
+        if o.status == "취소":
+            continue
+        if o.status == "완료" and target == "진행중":
+            continue
+        if o.status != target:
+            o.status = target
+            changed = True
+    if changed:
+        db.commit()
+
+
 def start_schedule(db: Session, schedule_id: int) -> TestSchedule:
     schedule = get_schedule(db, schedule_id)
     if schedule.actual_start:
@@ -40,6 +63,7 @@ def start_schedule(db: Session, schedule_id: int) -> TestSchedule:
     schedule.actual_start = date.today()
     db.commit()
     db.refresh(schedule)
+    _sync_vendor_orders(db, schedule)
     return schedule
 
 
@@ -67,13 +91,11 @@ def list_schedules(db: Session, page: int, size: int, project_id, status, test_t
 
     projects_all = db.query(Project).all()
     proj_names = {p.id: p.name for p in projects_all}
-    proj_part_names = {p.id: p.part_name for p in projects_all}
     std_items_all = db.query(StandardItem).all()
     std_names = {s.id: s.name for s in std_items_all}
     std_codes = {s.id: s.standard_code for s in std_items_all}
     for it in result["items"]:
         it.project_name = proj_names.get(it.project_id)
-        it.project_part_name = proj_part_names.get(it.project_id)
         it.standard_name = std_names.get(it.standard_item_id)
         it.standard_code = std_codes.get(it.standard_item_id)
         it.display_status = compute_status(it)
@@ -98,23 +120,59 @@ def update_schedule(db: Session, schedule_id: int, body: TestScheduleUpdate) -> 
         setattr(schedule, field, value)
     db.commit()
     db.refresh(schedule)
+    _sync_vendor_orders(db, schedule)
     return schedule
 
 def record_result(db: Session, schedule_id: int, body: TestScheduleResultPatch, changed_by: int) -> TestSchedule:
     schedule = get_schedule(db, schedule_id)
     schedule.result = body.result
-    schedule.status = "완료"
     schedule.data_path = body.data_path
-    if body.actual_end:
-        schedule.actual_end = body.actual_end
+    if body.result == "보류":
+        # 보류는 판단 유보일 뿐 시험이 끝난 게 아니므로 '완료'로 넘기지 않고 '진행중'으로 되돌린다.
+        schedule.status = "진행중"
+        schedule.actual_end = None
+    else:
+        schedule.status = "완료"
+        if body.actual_end:
+            schedule.actual_end = body.actual_end
     db.commit()
     db.refresh(schedule)
+    _sync_vendor_orders(db, schedule)
     return schedule
 
 def delete_schedule(db: Session, schedule_id: int):
     schedule = get_schedule(db, schedule_id)
     schedule.status = "취소"
     db.commit()
+
+def create_retest(db: Session, schedule_id: int, created_by: int) -> TestSchedule:
+    """불합격 판정된 시험을 새 회차(round_no+1)로 등록한다.
+    기존 회차 레코드는 그대로 두어 최초 불합격 시점의 데이터·이력을 보존한다."""
+    original = get_schedule(db, schedule_id)
+    if original.result != "불합격":
+        raise HTTPException(status_code=400, detail="결과가 '불합격'인 시험만 재시험으로 등록할 수 있습니다")
+    max_round = db.query(func.max(TestSchedule.round_no)).filter(
+        TestSchedule.project_id == original.project_id,
+        TestSchedule.standard_item_id == original.standard_item_id,
+    ).scalar() or 1
+    duration = max((original.planned_end - original.planned_start).days, 0)
+    planned_start = date.today()
+    retest = TestSchedule(
+        project_id=original.project_id,
+        standard_item_id=original.standard_item_id,
+        test_type=original.test_type,
+        equipment_id=original.equipment_id,
+        assignee_id=original.assignee_id,
+        planned_start=planned_start,
+        planned_end=planned_start + timedelta(days=duration),
+        status="계획",
+        round_no=max_round + 1,
+        created_by=created_by,
+    )
+    db.add(retest)
+    db.commit()
+    db.refresh(retest)
+    return retest
 
 # ── Gantt 뷰 (프로젝트별 그룹) ─────────────────────────────
 def get_gantt_data(db: Session, project_id: int | None, status: str | None) -> dict:
@@ -176,7 +234,12 @@ def get_project_summary(db: Session, page: int, size: int, search: str | None = 
     q = db.query(Project)
     if search:
         like = f"%{search}%"
-        q = q.filter(or_(Project.name.ilike(like), Project.project_code.ilike(like), Project.part_name.ilike(like)))
+        matching_item_ids = [i.id for i in db.query(Item.id).filter(Item.name.ilike(like)).all()]
+        q = q.filter(or_(
+            Project.name.ilike(like),
+            Project.project_code.ilike(like),
+            Project.item_id.in_(matching_item_ids),
+        ))
     paged = pagination_helper.paginate(q.order_by(Project.id.desc()), page, size)
     total = paged["total"]
     projects = paged["items"]
@@ -196,7 +259,7 @@ def get_project_summary(db: Session, page: int, size: int, search: str | None = 
             "project_name": p.name,
             "project_code": p.project_code,
             "customer_name": customer_names.get(p.customer_id),
-            "item_name": item_names.get(p.item_id) if p.item_id else p.part_name,
+            "item_name": item_names.get(p.item_id),
             "phase": p.phase,
             "total_items": len(standard_ids),
             "status_counts": counts,
@@ -217,11 +280,20 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
         key=lambda s: (s.standard_no or "", s.standard_code or ""),
     )
 
+    linked_schedule_ids = {
+        n.test_schedule_id for n in
+        db.query(NCRReport.test_schedule_id).filter(NCRReport.test_schedule_id.isnot(None)).all()
+    }
+
     groups: dict[str, dict] = {}
     counts = {k: 0 for k in STATUS_KEYS}
     for s in std_items:
-        schedule, st = _item_status_for_project(db, project_id, s.id)
-        counts[st] = counts.get(st, 0) + 1
+        schedules = (
+            db.query(TestSchedule)
+            .filter(TestSchedule.project_id == project_id, TestSchedule.standard_item_id == s.id)
+            .order_by(TestSchedule.round_no.asc(), TestSchedule.id.asc())
+            .all()
+        )
         key = s.standard_no or ""
         g = groups.setdefault(key, {
             "standard_no": s.standard_no,
@@ -229,20 +301,52 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
             "revision_no": s.revision_no,
             "items": [],
         })
-        g["items"].append({
-            "standard_item_id": s.id,
-            "standard_code": s.standard_code,
-            "name": s.name,
-            "schedule_id": schedule.id if schedule else None,
-            "test_type": schedule.test_type if schedule else None,
-            "planned_start": schedule.planned_start.isoformat() if schedule and schedule.planned_start else None,
-            "planned_end": schedule.planned_end.isoformat() if schedule and schedule.planned_end else None,
-            "actual_start": schedule.actual_start.isoformat() if schedule and schedule.actual_start else None,
-            "actual_end": schedule.actual_end.isoformat() if schedule and schedule.actual_end else None,
-            "display_status": st,
-            "result": schedule.result if schedule else None,
-            "data_path": schedule.data_path if schedule else None,
-        })
+
+        if not schedules:
+            counts["계획"] += 1
+            g["items"].append({
+                "standard_item_id": s.id,
+                "standard_code": s.standard_code,
+                "name": s.name,
+                "round_no": 1,
+                "schedule_id": None,
+                "test_type": None,
+                "planned_start": None,
+                "planned_end": None,
+                "actual_start": None,
+                "actual_end": None,
+                "display_status": "계획",
+                "result": None,
+                "data_path": None,
+                "has_ncr": False,
+                "can_retest": False,
+            })
+            continue
+
+        last_idx = len(schedules) - 1
+        for idx, schedule in enumerate(schedules):
+            st = compute_status(schedule)
+            if idx == last_idx:
+                # 회차가 여러 개여도 상단 요약(summary)에는 가장 최근 회차 상태만 반영한다 —
+                # 이 카운트는 "규격 항목 단위" 진행 현황이지 "시도 횟수"가 아니기 때문.
+                counts[st] = counts.get(st, 0) + 1
+            g["items"].append({
+                "standard_item_id": s.id,
+                "standard_code": s.standard_code,
+                "name": s.name if schedule.round_no <= 1 else f"{s.name} 재시험 {schedule.round_no}",
+                "round_no": schedule.round_no,
+                "schedule_id": schedule.id,
+                "test_type": schedule.test_type,
+                "planned_start": schedule.planned_start.isoformat() if schedule.planned_start else None,
+                "planned_end": schedule.planned_end.isoformat() if schedule.planned_end else None,
+                "actual_start": schedule.actual_start.isoformat() if schedule.actual_start else None,
+                "actual_end": schedule.actual_end.isoformat() if schedule.actual_end else None,
+                "display_status": st,
+                "result": schedule.result,
+                "data_path": schedule.data_path,
+                "has_ncr": schedule.id in linked_schedule_ids,
+                "can_retest": idx == last_idx and schedule.result == "불합격",
+            })
 
     return {
         "project": {
@@ -250,7 +354,7 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
             "name": project.name,
             "project_code": project.project_code,
             "customer_name": customer.name if customer else None,
-            "item_name": item.name if item else project.part_name,
+            "item_name": item.name if item else None,
             "phase": project.phase,
             "status": project.status,
             "start_date": project.start_date.isoformat() if project.start_date else None,
@@ -259,14 +363,3 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
         "summary": counts,
         "standards": sorted(groups.values(), key=lambda g: (g["standard_no"] or "")),
     }
-
-
-def list_vendors(db: Session) -> list:
-    return db.query(Vendor).filter(Vendor.is_active == True).order_by(Vendor.name).all()
-
-def create_vendor(db: Session, body: VendorCreate) -> Vendor:
-    vendor = Vendor(**body.model_dump(), is_active=True)
-    db.add(vendor)
-    db.commit()
-    db.refresh(vendor)
-    return vendor

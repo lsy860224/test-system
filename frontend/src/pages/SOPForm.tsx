@@ -1,9 +1,12 @@
 import React, { type CSSProperties, useEffect, useRef, useState } from 'react'
 import {
   sopApi, type SOPItem, type SOPRevision, type SOPAttachment,
-  SOP_CATEGORIES, SOP_STATUSES, SOP_STATUS_COLORS,
+  SOP_CATEGORIES, SOP_STATUSES, SOP_STATUS_COLORS, SOP_DOC_TYPES, SOP_STATUS_ROLE_MAP,
 } from '@/api/sop'
 import { standardApi, type StandardItem, type StandardCategory } from '@/api/standards'
+import { equipmentApi, EQ_CATEGORIES, STATUS_COLORS as EQ_STATUS_COLORS, type Equipment } from '@/api/equipment'
+import { usersApi, type AppUser } from '@/api/users'
+import { useAuthStore } from '@/stores/authStore'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
@@ -17,11 +20,11 @@ interface Props {
   onSaved: () => void
 }
 
-type Tab = '기본정보' | '절차 내용' | '첨부파일' | '규격 항목' | '개정 이력'
+type Tab = '기본정보' | '절차 내용' | '첨부파일' | '규격 항목' | '장비' | '개정 이력'
 
 const emptyForm = {
-  sop_number: '', title: '', version: 'v1.0', category: '',
-  status: '초안', owner: '', approved_by: '',
+  sop_number: '', title: '', version: 'v1.0', doc_type: '시험절차서', category: '',
+  status: '초안', owner: '', approver_id: '' as number | '',
   issue_date: '', revision_date: '', description: '', content: '', notes: '',
 }
 
@@ -58,28 +61,50 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
   const [standardCatFilter, setStandardCatFilter] = useState<number | ''>('')
   const [standardLoading, setStandardLoading] = useState(false)
 
+  // 장비 탭 (장비절차서)
+  const [allEquipment, setAllEquipment] = useState<Equipment[]>([])
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<number>>(new Set())
+  const [equipmentSearch, setEquipmentSearch] = useState('')
+  const [equipmentCatFilter, setEquipmentCatFilter] = useState('')
+  const [equipmentLoading, setEquipmentLoading] = useState(false)
+
+  // 승인자 후보 (팀장/임원/admin)
+  const [users, setUsers] = useState<AppUser[]>([])
+  const currentUser = useAuthStore((s) => s.user)
+  const currentRole = currentUser?.role
+  const approverCandidates = users.filter((u) => ['팀장', '임원', 'admin'].includes(u.role))
+
   useEffect(() => {
     standardApi.categories().then(setAllCategories)
     standardApi.list({ size: 500 }).then((r) => setAllStandards(r.items))
+    equipmentApi.list({ size: 500 }).then((r) => setAllEquipment(r.items))
+    usersApi.list().then(setUsers)
   }, [])
+
+  // 신규 등록 시 작성자는 로그인 사용자 이름으로 고정 (수정 불가)
+  useEffect(() => {
+    if (!isEdit && currentUser) set('owner', currentUser.name)
+  }, [isEdit, currentUser])
 
   useEffect(() => {
     if (!isEdit || !sopId) return
     Promise.all([
       sopApi.get(sopId),
       sopApi.getStandardItems(sopId),
-    ]).then(([s, standardItems]) => {
+      sopApi.getEquipment(sopId),
+    ]).then(([s, standardItems, equipmentItems]) => {
       setForm({
         sop_number: s.sop_number ?? '', title: s.title ?? '',
-        version: s.version ?? 'v1.0', category: s.category ?? '',
+        version: s.version ?? 'v1.0', doc_type: s.doc_type ?? '시험절차서', category: s.category ?? '',
         status: s.status ?? '초안', owner: s.owner ?? '',
-        approved_by: s.approved_by ?? '', issue_date: s.issue_date ?? '',
+        approver_id: s.approver_id ?? '', issue_date: s.issue_date ?? '',
         revision_date: s.revision_date ?? '', description: s.description ?? '',
         content: s.content ?? '', notes: s.notes ?? '',
       })
       setRevisions(s.revisions ?? [])
       setAttachments(s.attachments ?? [])
       setSelectedStandardIds(new Set(standardItems.map((e) => e.id)))
+      setSelectedEquipmentIds(new Set(equipmentItems.map((e) => e.id)))
     }).finally(() => setLoading(false))
   }, [sopId])
 
@@ -90,6 +115,18 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
     if (next.has(id)) next.delete(id); else next.add(id)
     return next
   })
+
+  const toggleEquipment = (id: number) => setSelectedEquipmentIds((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  // 문서 종류 전환 시 연동 탭이 바뀌므로, 지금 보고 있던 연동 탭이면 기본정보로 돌아간다
+  const handleDocTypeChange = (value: string) => {
+    set('doc_type', value)
+    if (tab === '규격 항목' || tab === '장비') setTab('기본정보')
+  }
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -136,9 +173,10 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
     try {
       const payload = {
         sop_number: form.sop_number.trim(), title: form.title.trim(),
-        version: form.version || 'v1.0', category: form.category || null,
+        version: form.version || 'v1.0', doc_type: form.doc_type || '시험절차서',
+        category: form.category || null,
         status: form.status, owner: form.owner || null,
-        approved_by: form.approved_by || null,
+        approver_id: form.approver_id === '' ? null : Number(form.approver_id),
         issue_date: form.issue_date || null,
         revision_date: form.revision_date || null,
         description: form.description || null,
@@ -159,21 +197,27 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
         }
         setPendingFiles([])
 
-        setStandardLoading(true)
-        await sopApi.setStandardItems(sid, [...selectedStandardIds])
-        setStandardLoading(false)
+        if (form.doc_type === '장비절차서') {
+          setEquipmentLoading(true)
+          await sopApi.setEquipment(sid, [...selectedEquipmentIds])
+          setEquipmentLoading(false)
+        } else {
+          setStandardLoading(true)
+          await sopApi.setStandardItems(sid, [...selectedStandardIds])
+          setStandardLoading(false)
+        }
       }
 
       onSaved()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
       alert(msg)
-    } finally { setSaving(false); setStandardLoading(false) }
+    } finally { setSaving(false); setStandardLoading(false); setEquipmentLoading(false) }
   }
 
   const handleDelete = async () => {
     if (!sopId) return
-    if (!confirm('이 SOP를 삭제하시겠습니까?\n개정 이력도 함께 삭제됩니다.')) return
+    if (!confirm('이 절차서를 삭제하시겠습니까?\n개정 이력도 함께 삭제됩니다.')) return
     setDeleting(true)
     try { await sopApi.delete(sopId); onSaved() }
     catch { alert('삭제 중 오류가 발생했습니다') }
@@ -206,13 +250,15 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
     } catch { alert('삭제 중 오류가 발생했습니다') }
   }
 
+  const linkTab: Tab = form.doc_type === '장비절차서' ? '장비' : '규격 항목'
   const TABS: Tab[] = isEdit
-    ? ['기본정보', '절차 내용', '첨부파일', '규격 항목', '개정 이력']
-    : ['기본정보', '절차 내용', '첨부파일', '규격 항목']
+    ? ['기본정보', '절차 내용', '첨부파일', linkTab, '개정 이력']
+    : ['기본정보', '절차 내용', '첨부파일', linkTab]
 
   const tabLabel = (t: Tab): string => {
     if (t === '첨부파일') return `첨부파일 (${attachments.length + pendingFiles.length})`
     if (t === '규격 항목') return `규격 항목 (${selectedStandardIds.size})`
+    if (t === '장비') return `장비 (${selectedEquipmentIds.size})`
     return t
   }
 
@@ -231,10 +277,10 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>
-              {isEdit ? 'SOP 수정' : 'SOP 등록'}
+              {isEdit ? '절차서 수정' : '절차서 등록'}
             </h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              {isEdit ? `${form.sop_number} ${form.version}` : '새 시험 절차서를 등록합니다'}
+              {isEdit ? `${form.sop_number} ${form.version}` : '새 절차서를 등록합니다'}
             </p>
           </div>
           <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
@@ -246,6 +292,7 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
               fontSize: 13, fontWeight: 600,
               color: tab === t ? 'var(--primary)' : 'var(--text-muted)',
               borderBottom: tab === t ? '2px solid var(--primary)' : '2px solid transparent',
+              whiteSpace: 'nowrap',
             }}>{tabLabel(t)}</button>
           ))}
         </div>
@@ -257,6 +304,11 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
         {/* ── 기본정보 ── */}
         {tab === '기본정보' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <F label="문서 종류 *">
+              <select value={form.doc_type} onChange={(e) => handleDocTypeChange(e.target.value)} style={inp}>
+                {SOP_DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </F>
             <F label="분류">
               <select value={form.category} onChange={(e) => handleCategoryChange(e.target.value)} style={inp}>
                 <option value="">-- 선택 --</option>
@@ -265,7 +317,10 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
             </F>
             <F label="상태">
               <select value={form.status} onChange={(e) => set('status', e.target.value)} style={inp}>
-                {SOP_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {SOP_STATUSES.map((s) => {
+                  const allowed = !currentRole || SOP_STATUS_ROLE_MAP[s]?.includes(currentRole)
+                  return <option key={s} value={s} disabled={!allowed}>{s}{!allowed ? ' (권한 없음)' : ''}</option>
+                })}
               </select>
             </F>
             <F label="문서 번호 *">
@@ -281,12 +336,14 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
                 style={inp} placeholder="온도충격시험 절차서" />
             </F>
             <F label="작성자">
-              <input value={form.owner} onChange={(e) => set('owner', e.target.value)}
-                style={inp} placeholder="홍길동" />
+              <input value={form.owner} disabled
+                style={{ ...inp, background: 'var(--bg, #F3F4F6)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
             </F>
             <F label="승인자">
-              <input value={form.approved_by} onChange={(e) => set('approved_by', e.target.value)}
-                style={inp} placeholder="김팀장" />
+              <select value={form.approver_id} onChange={(e) => set('approver_id', e.target.value === '' ? '' : Number(e.target.value))} style={inp}>
+                <option value="">-- 선택 --</option>
+                {approverCandidates.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+              </select>
             </F>
             <F label="최초 발행일">
               <input type="date" value={form.issue_date} onChange={(e) => set('issue_date', e.target.value)} style={inp} />
@@ -448,6 +505,88 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
                           {item.category_name && (
                             <Badge label={item.category_name} color={item.category_color} />
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* ── 장비 ── */}
+        {tab === '장비' && (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input
+                value={equipmentSearch} onChange={(e) => setEquipmentSearch(e.target.value)}
+                placeholder="장비명 / 모델명 / 담당자 검색"
+                style={{ ...inp, flex: 1 }}
+              />
+              <select value={equipmentCatFilter} onChange={(e) => setEquipmentCatFilter(e.target.value)} style={{ ...inp, width: 'auto' }}>
+                <option value="">전체 분류</option>
+                {EQ_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {allEquipment.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                등록된 장비가 없습니다.<br />장비 관리에서 장비를 먼저 추가하세요.
+              </div>
+            ) : (() => {
+              const filteredEquipment = allEquipment.filter((eq) => {
+                const matchCat = !equipmentCatFilter || eq.category === equipmentCatFilter
+                const matchSearch = !equipmentSearch
+                  || eq.name.includes(equipmentSearch)
+                  || (eq.model ?? '').includes(equipmentSearch)
+                  || (eq.manager ?? '').includes(equipmentSearch)
+                return matchCat && matchSearch
+              })
+              const grouped: Record<string, Equipment[]> = {}
+              for (const eq of filteredEquipment) {
+                const key = eq.category || '(분류 미입력)'
+                if (!grouped[key]) grouped[key] = []
+                grouped[key].push(eq)
+              }
+              return (
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+                    {selectedEquipmentIds.size > 0 && <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{selectedEquipmentIds.size}건 선택됨 · </span>}
+                    전체 {allEquipment.length}건 중 {filteredEquipment.length}건 표시
+                  </div>
+                  {Object.entries(grouped).map(([catName, eqs]) => (
+                    <div key={catName} style={{ marginBottom: 14 }}>
+                      <div style={{
+                        fontSize: 12, fontWeight: 700, color: 'var(--primary)',
+                        padding: '6px 10px', background: '#F0F2FF', borderRadius: 6, marginBottom: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      }}>
+                        <span>🔧 {catName}</span>
+                        <button onClick={() => {
+                          const allSelected = eqs.every((e) => selectedEquipmentIds.has(e.id))
+                          setSelectedEquipmentIds((prev) => {
+                            const next = new Set(prev)
+                            if (allSelected) eqs.forEach((e) => next.delete(e.id))
+                            else eqs.forEach((e) => next.add(e.id))
+                            return next
+                          })
+                        }} style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}>
+                          {eqs.every((e) => selectedEquipmentIds.has(e.id)) ? '전체 해제' : '전체 선택'}
+                        </button>
+                      </div>
+                      {eqs.map((eq) => (
+                        <div key={eq.id} onClick={() => toggleEquipment(eq.id)} style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                          borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                          background: selectedEquipmentIds.has(eq.id) ? '#EBF4FF' : 'transparent',
+                          border: `1px solid ${selectedEquipmentIds.has(eq.id) ? 'var(--primary)' : 'var(--border)'}`,
+                        }}>
+                          <input type="checkbox" checked={selectedEquipmentIds.has(eq.id)} onChange={() => toggleEquipment(eq.id)}
+                            onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} />
+                          <span style={{ fontSize: 13, flex: 1 }}>{eq.name}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{eq.model ?? '-'}</span>
+                          <Badge label={eq.status} color={EQ_STATUS_COLORS[eq.status]} />
                         </div>
                       ))}
                     </div>

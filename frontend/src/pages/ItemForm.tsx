@@ -13,7 +13,6 @@ interface Props {
 }
 
 const empty = {
-  item_code: '',
   name: '',
   category: '',
   spec: '',
@@ -31,7 +30,6 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
     if (!isEdit || !itemId) return
     itemsApi.get(itemId).then((item) => {
       setForm({
-        item_code: item.item_code ?? '',
         name: item.name,
         category: item.category ?? '',
         spec: item.spec ?? '',
@@ -59,7 +57,6 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
     setSaving(true)
     try {
       const payload = {
-        item_code: form.item_code || null,
         name: form.name.trim(),
         category: form.category || null,
         spec: form.spec || null,
@@ -93,7 +90,7 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 700 }}>{isEdit ? '아이템 수정' : '아이템 등록'}</h3>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            프로젝트(차종)에서 재사용되는 부품/아이템 마스터입니다.
+            프로젝트(차종)에서 재사용되는 부품/아이템 마스터입니다. 아이템 코드는 자동 생성됩니다.
           </p>
         </div>
         <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
@@ -101,10 +98,7 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
 
       <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(85vh - 160px)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <F label="아이템 코드">
-            <input value={form.item_code} onChange={(e) => set('item_code', e.target.value)} style={inp} placeholder="ITEM-001" />
-          </F>
-          <F label="분류">
+          <F label="분류" span={2}>
             <select value={form.category} onChange={(e) => set('category', e.target.value)} style={inp}>
               <option value="">-- 분류 선택 --</option>
               {ITEM_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}

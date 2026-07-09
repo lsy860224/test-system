@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from dependencies import get_db, get_current_user
+from dependencies import get_db, get_current_user, require_staff
 from schemas.user import UserCreate, UserUpdate, UserListOut
 from services import user_service
 
-router = APIRouter(prefix="/users", tags=["담당자 관리"])
+router = APIRouter(prefix="/users", tags=["사용자 관리"])
 
 def require_admin(current_user=Depends(get_current_user)):
     if current_user.role != "admin":
@@ -12,7 +12,7 @@ def require_admin(current_user=Depends(get_current_user)):
     return current_user
 
 @router.get("/", response_model=list[UserListOut])
-def list_users(db: Session = Depends(get_db), _=Depends(get_current_user)):
+def list_users(db: Session = Depends(get_db), _=Depends(require_staff)):
     return user_service.list_users(db)
 
 @router.post("/", response_model=UserListOut, status_code=201)

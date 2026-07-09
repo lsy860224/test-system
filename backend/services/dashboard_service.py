@@ -39,8 +39,12 @@ def get_summary(db: Session, year: int | None = None) -> dict:
     ).count()
     ncr_total = db.query(NCRReport).filter(NCRReport.status != "취소").count()
 
-    # ── 진행 중 프로젝트 ──────────────────────────────────────
-    active_projects = db.query(Project).filter(Project.status == "활성").count()
+    # ── 프로젝트 현황 ─────────────────────────────────────────
+    project_status_counts: dict[str, int] = {}
+    for (status,) in db.query(Project.status).all():
+        s = status or "활성"
+        project_status_counts[s] = project_status_counts.get(s, 0) + 1
+    project_total = sum(project_status_counts.values())
 
     # ── 시험 일정 4분할 ───────────────────────────────────────
     # 예정: 활성 프로젝트에 연결된 규격 항목 중 TestSchedule이 없는 것
@@ -146,7 +150,8 @@ def get_summary(db: Session, year: int | None = None) -> dict:
             "completed": ncr_completed,
         },
         "projects": {
-            "active": active_projects,
+            "total": project_total,
+            "by_status": project_status_counts,
         },
         "schedules": {
             "expected": expected,

@@ -57,6 +57,7 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
   const [investments, setInvestments] = useState<InvestmentRecord[]>([])
   const [showInvForm, setShowInvForm] = useState(false)
   const [invForm, setInvForm] = useState({ ...emptyInvForm })
+  const [editInvId, setEditInvId] = useState<number | null>(null)
   const [savingInv, setSavingInv] = useState(false)
 
   useEffect(() => {
@@ -198,9 +199,15 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
         amount_est: invForm.amount_est ? Number(invForm.amount_est) : null,
         notes: invForm.notes || null,
       }
-      const created = await equipmentApi.createInvestment(payload)
-      setInvestments((prev) => [...prev, created])
+      if (editInvId !== null) {
+        const updated = await equipmentApi.updateInvestment(editInvId, payload)
+        setInvestments((prev) => prev.map((i) => i.id === editInvId ? updated : i))
+      } else {
+        const created = await equipmentApi.createInvestment(payload)
+        setInvestments((prev) => [...prev, created])
+      }
       setShowInvForm(false)
+      setEditInvId(null)
       setInvForm({ ...emptyInvForm })
     } catch { alert('저장 중 오류가 발생했습니다') }
     finally { setSavingInv(false) }
@@ -212,6 +219,18 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
       await equipmentApi.deleteInvestment(invId)
       setInvestments((prev) => prev.filter((i) => i.id !== invId))
     } catch { alert('삭제 중 오류가 발생했습니다') }
+  }
+
+  const openEditInv = (inv: InvestmentRecord) => {
+    setEditInvId(inv.id)
+    setInvForm({
+      year: inv.year,
+      invest_type: inv.invest_type,
+      item_name: inv.item_name ?? '',
+      amount_est: inv.amount_est != null ? String(inv.amount_est) : '',
+      notes: inv.notes ?? '',
+    })
+    setShowInvForm(true)
   }
 
   // ── 렌더링 ──────────────────────────────────────────────
@@ -257,6 +276,7 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
               fontSize: 13, fontWeight: 600,
               color: tab === t ? 'var(--primary)' : 'var(--text-muted)',
               borderBottom: tab === t ? '2px solid var(--primary)' : '2px solid transparent',
+              whiteSpace: 'nowrap',
             }}>{t}</button>
           ))}
         </div>
@@ -468,14 +488,16 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
         {tab === '투자계획' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <Button size="sm" onClick={() => { setInvForm({ ...emptyInvForm }); setShowInvForm(true) }}>
+              <Button size="sm" onClick={() => { setEditInvId(null); setInvForm({ ...emptyInvForm }); setShowInvForm(true) }}>
                 + 투자 계획 추가
               </Button>
             </div>
 
             {showInvForm && (
               <div style={{ background: 'var(--surface-raised, #F9FAFB)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>투자 계획 추가</p>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                  {editInvId !== null ? '투자 계획 수정' : '투자 계획 추가'}
+                </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '100px 120px 1fr 140px', gap: 12 }}>
                   <F label="연도 *">
                     <input type="number" value={invForm.year} onChange={(e) => setInv('year', e.target.value)}
@@ -501,7 +523,7 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
                   </F>
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-                  <Button variant="secondary" size="sm" onClick={() => setShowInvForm(false)}>취소</Button>
+                  <Button variant="secondary" size="sm" onClick={() => { setShowInvForm(false); setEditInvId(null) }}>취소</Button>
                   <Button size="sm" onClick={handleSaveInv} loading={savingInv}>저장</Button>
                 </div>
               </div>
@@ -528,7 +550,9 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
                       <td style={td}>{inv.item_name ?? '-'}</td>
                       <td style={td}>{inv.amount_est != null ? `${inv.amount_est.toLocaleString()}원` : '-'}</td>
                       <td style={td}>{inv.notes ?? '-'}</td>
-                      <td style={td}>
+                      <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                        <button onClick={() => openEditInv(inv)}
+                          style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', marginRight: 8 }}>수정</button>
                         <button onClick={() => handleDeleteInv(inv.id)}
                           style={{ fontSize: 11, color: '#E53E3E', background: 'none', border: 'none', cursor: 'pointer' }}>삭제</button>
                       </td>

@@ -1,5 +1,5 @@
 import React, { type CSSProperties, useEffect, useState } from 'react'
-import { projectsApi } from '@/api/projects'
+import { projectsApi, projectStatusLabel } from '@/api/projects'
 import { customersApi, type CustomerListItem } from '@/api/customers'
 import { standardApi, type StandardItem, type StandardCategory } from '@/api/standards'
 import { itemsApi, type Item } from '@/api/items'
@@ -20,13 +20,13 @@ interface Props {
 type Tab = 'info' | 'standards'
 
 const empty = {
-  customer_id: '', item_id: '', name: '', project_code: '', part_name: '',
+  customer_id: '', item_id: '', name: '', project_code: '',
   phase: '개발', status: '활성',
   start_date: '', target_date: '', assignee_id: '', notes: '',
 }
 
 const PHASES = ['RFQ', '개발', 'DV', 'PV', '양산준비', '양산']
-const STATUSES = ['활성', '완료', '보류', '취소']
+const STATUSES = ['활성', '완료', '보류', '지연', '취소']
 
 export default function ProjectForm({ projectId, onClose, onSaved, standalone }: Props) {
   const isEdit = projectId !== null
@@ -68,7 +68,6 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         item_id: proj.item_id != null ? String(proj.item_id) : '',
         name: String(proj.name ?? ''),
         project_code: String(proj.project_code ?? ''),
-        part_name: String(proj.part_name ?? ''),
         phase: String(proj.phase ?? '개발'),
         status: String(proj.status ?? '활성'),
         start_date: String(proj.start_date ?? ''),
@@ -110,7 +109,6 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         item_id: form.item_id ? Number(form.item_id) : null,
         name: form.name.trim(),
         project_code: form.project_code || null,
-        part_name: form.part_name || null,
         phase: form.phase,
         status: form.status,
         start_date: form.start_date || null,
@@ -182,7 +180,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
               fontWeight: tab === t ? 700 : 400,
               color: tab === t ? 'var(--au-blue)' : 'var(--text-secondary)',
               borderBottom: tab === t ? '2px solid var(--au-blue)' : '2px solid transparent',
-              marginBottom: -1,
+              marginBottom: -1, whiteSpace: 'nowrap',
             }}>{label}</button>
           ))}
         </div>
@@ -207,18 +205,11 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
             <F label="프로젝트 코드">
               <input value={form.project_code} onChange={(e) => set('project_code', e.target.value)} style={inp} placeholder="PRJ-2025-001" />
             </F>
-            <F label="아이템">
-              <select value={form.item_id} onChange={(e) => {
-                const id = e.target.value
-                const picked = items.find((i) => String(i.id) === id)
-                setForm((p) => ({ ...p, item_id: id, part_name: picked ? picked.name : p.part_name }))
-              }} style={inp}>
-                <option value="">-- 아이템 선택 (없으면 아래 부품명 직접 입력) --</option>
+            <F label="아이템" span={2}>
+              <select value={form.item_id} onChange={(e) => set('item_id', e.target.value)} style={inp}>
+                <option value="">-- 아이템 선택 --</option>
                 {items.map((i) => <option key={i.id} value={i.id}>{i.name}{i.item_code ? ` (${i.item_code})` : ''}</option>)}
               </select>
-            </F>
-            <F label="부품명">
-              <input value={form.part_name} onChange={(e) => set('part_name', e.target.value)} style={inp} placeholder="IVI 인포테인먼트 시스템" />
             </F>
             <F label="개발 단계">
               <select value={form.phase} onChange={(e) => set('phase', e.target.value)} style={inp}>
@@ -227,7 +218,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
             </F>
             <F label="상태">
               <select value={form.status} onChange={(e) => set('status', e.target.value)} style={inp}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {STATUSES.map((s) => <option key={s} value={s}>{projectStatusLabel(s)}</option>)}
               </select>
             </F>
             <F label="시작일">

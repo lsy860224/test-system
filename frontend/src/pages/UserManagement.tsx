@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import Table, { type Column } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
+import { useUIStore } from '@/stores/uiStore'
 import UserForm from './UserForm'
 
 export default function UserManagement() {
@@ -19,6 +20,9 @@ export default function UserManagement() {
   }
 
   useEffect(() => { load() }, [])
+
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${items.length}명`) }, [items.length])
 
   const handleSaved = () => { setFormUser(undefined); load() }
 
@@ -54,12 +58,9 @@ export default function UserManagement() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1 }}>
-          담당자 관리 <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>총 {items.length}명</span>
-        </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginBottom: 20 }}>
         {isAdmin ? (
-          <Button size="sm" onClick={() => setFormUser(null)}>+ 담당자 등록</Button>
+          <Button size="sm" onClick={() => setFormUser(null)}>+ 사용자 등록</Button>
         ) : (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>계정 등록/수정은 관리자만 가능합니다</span>
         )}
@@ -70,7 +71,7 @@ export default function UserManagement() {
         data={items}
         rowKey={(r) => r.id}
         loading={loading}
-        emptyText="등록된 담당자가 없습니다."
+        emptyText="등록된 사용자가 없습니다."
         onRowClick={isAdmin ? (r) => setFormUser(r) : undefined}
       />
 

@@ -7,13 +7,6 @@ from models.item import Item
 from schemas.project import ProjectCreate, ProjectUpdate, MilestoneCreate
 from services import pagination_helper, standard_service
 
-def _sync_part_name(db: Session, project: Project):
-    """item_id가 연결되어 있으면 표시용 part_name을 Item.name으로 동기화 (하위호환 필드)"""
-    if project.item_id:
-        item = db.query(Item).filter(Item.id == project.item_id).first()
-        if item:
-            project.part_name = item.name
-
 def list_projects(db: Session, page: int, size: int, customer_id, status, phase=None, search=None) -> dict:
     q = db.query(Project)
     if customer_id:
@@ -24,8 +17,17 @@ def list_projects(db: Session, page: int, size: int, customer_id, status, phase=
         q = q.filter(Project.phase == phase)
     if search:
         like = f"%{search}%"
-        q = q.filter(or_(Project.name.ilike(like), Project.project_code.ilike(like), Project.part_name.ilike(like)))
-    return pagination_helper.paginate(q.order_by(Project.created_at.desc()), page, size)
+        matching_item_ids = [i.id for i in db.query(Item.id).filter(Item.name.ilike(like)).all()]
+        q = q.filter(or_(
+            Project.name.ilike(like),
+            Project.project_code.ilike(like),
+            Project.item_id.in_(matching_item_ids),
+        ))
+    result = pagination_helper.paginate(q.order_by(Project.created_at.desc()), page, size)
+    item_names = {i.id: i.name for i in db.query(Item).all()}
+    for p in result["items"]:
+        p.item_name = item_names.get(p.item_id)
+    return result
 
 def get_project(db: Session, project_id: int) -> Project:
     p = db.query(Project).filter(Project.id == project_id).first()
@@ -35,7 +37,6 @@ def get_project(db: Session, project_id: int) -> Project:
 
 def create_project(db: Session, body: ProjectCreate, created_by: int) -> Project:
     project = Project(**body.model_dump(), progress_pct=0, created_by=created_by)
-    _sync_part_name(db, project)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -45,7 +46,6 @@ def update_project(db: Session, project_id: int, body: ProjectUpdate) -> Project
     project = get_project(db, project_id)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(project, field, value)
-    _sync_part_name(db, project)
     db.commit()
     db.refresh(project)
     return project

@@ -4,6 +4,7 @@ import Table, { type Column } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { toggleSort, sortByKey, type SortState } from '@/utils/sort'
+import { useUIStore } from '@/stores/uiStore'
 import ScheduleForm from './ScheduleForm'
 import ScheduleProjectDetail from './ScheduleProjectDetail'
 import GanttChart from './GanttChart'
@@ -34,6 +35,9 @@ export default function Schedule() {
 
   useEffect(() => { load() }, [])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`프로젝트 ${total}건`) }, [total])
+
   const sortedItems = sortByKey(items, sort)
   const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -41,10 +45,10 @@ export default function Schedule() {
     {
       key: 'project_name', header: '프로젝트', sortable: true,
       render: (r) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{r.project_name}</div>
-          {r.project_code && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.project_code}</div>}
-        </div>
+        <span>
+          <span style={{ fontWeight: 600 }}>{r.project_name}</span>
+          {r.project_code && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>{r.project_code}</span>}
+        </span>
       ),
     },
     { key: 'item_name', header: '아이템', width: 140, sortable: true, render: (r) => r.item_name ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
@@ -54,7 +58,7 @@ export default function Schedule() {
     {
       key: 'status_counts', header: '진행 현황',
       render: (r) => (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
           {STATUS_ORDER.filter((s) => (r.status_counts[s] ?? 0) > 0).map((s) => (
             <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <Badge label={s} /> <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{r.status_counts[s]}</span>
@@ -69,7 +73,7 @@ export default function Schedule() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1 }}>시험 일정 <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>프로젝트 {total}건</span></h2>
+        <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <button onClick={() => setView('list')} style={viewToggleStyle(view === 'list')}>목록</button>
           <button onClick={() => setView('gantt')} style={viewToggleStyle(view === 'gantt')}>간트 차트</button>

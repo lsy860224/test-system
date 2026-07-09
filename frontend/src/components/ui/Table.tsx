@@ -27,7 +27,7 @@ interface Props<T> {
 export default function Table<T>({ columns, data, rowKey, onRowClick, loading, emptyText = '데이터가 없습니다', sort, onSortChange }: Props<T>) {
   return (
     <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 320px)', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid var(--border)' }}>
             {columns.map((col) => {
@@ -48,6 +48,8 @@ export default function Table<T>({ columns, data, rowKey, onRowClick, loading, e
                     color: active ? 'var(--au-indigo)' : 'var(--text-secondary)',
                     width: col.width,
                     whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     background: '#FAFBFD',
                     boxShadow: 'inset 0 -2px 0 var(--border)',
                     cursor: sortable ? 'pointer' : undefined,
@@ -92,8 +94,10 @@ export default function Table<T>({ columns, data, rowKey, onRowClick, loading, e
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '' }}
               >
                 {columns.map((col) => (
-                  <td key={col.key} style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text-primary)', width: col.width }}>
-                    {col.render ? col.render(row) : (row as Record<string, unknown>)[col.key] as ReactNode}
+                  <td key={col.key} style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text-primary)', width: col.width, overflow: 'hidden' }}>
+                    <span style={{ display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      {col.render ? col.render(row) : (row as Record<string, unknown>)[col.key] as ReactNode}
+                    </span>
                   </td>
                 ))}
               </tr>

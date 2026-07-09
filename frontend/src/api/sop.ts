@@ -1,5 +1,6 @@
 import client from './client'
 import type { StandardItem } from './standards'
+import type { Equipment } from './equipment'
 import { downloadBlob } from '@/utils/downloadFile'
 
 export interface SOPItem {
@@ -7,10 +8,11 @@ export interface SOPItem {
   sop_number: string
   title: string
   version: string
+  doc_type: string
   category?: string
   status: string
   owner?: string
-  approved_by?: string
+  approver_id?: number | null
   issue_date?: string
   revision_date?: string
   description?: string
@@ -39,7 +41,7 @@ export interface SOPAttachment {
 }
 
 export const sopApi = {
-  list: (params: { page?: number; size?: number; search?: string; category?: string; status?: string }) =>
+  list: (params: { page?: number; size?: number; search?: string; category?: string; status?: string; doc_type?: string }) =>
     client.get<{ total: number; items: SOPItem[] }>('/sop/', { params }).then((r) => r.data),
 
   get: (id: number) => client.get<SOPItem>(`/sop/${id}`).then((r) => r.data),
@@ -80,16 +82,43 @@ export const sopApi = {
 
   setStandardItems: (sopId: number, standardItemIds: number[]) =>
     client.put<StandardItem[]>(`/sop/${sopId}/standard-items`, { standard_item_ids: standardItemIds }).then((r) => r.data),
+
+  getEquipment: (sopId: number) =>
+    client.get<Equipment[]>(`/sop/${sopId}/equipment`).then((r) => r.data),
+
+  setEquipment: (sopId: number, equipmentIds: number[]) =>
+    client.put<Equipment[]>(`/sop/${sopId}/equipment`, { equipment_ids: equipmentIds }).then((r) => r.data),
 }
 
 export const SOP_CATEGORIES = ['환경시험', '전기시험', 'EMC 시험', '기계시험', '신뢰성시험', '측정', '공통', '기타']
 export const SOP_STATUSES   = ['초안', '검토중', '승인', '폐기']
+export const SOP_DOC_TYPES  = ['시험절차서', '장비절차서']
 
 export const SOP_STATUS_COLORS: Record<string, string> = {
   '초안':  '#718096',
   '검토중': '#D69E2E',
   '승인':  '#38A169',
   '폐기':  '#A0AEC0',
+}
+
+export const SOP_DOC_TYPE_COLORS: Record<string, string> = {
+  '시험절차서': '#3182CE',
+  '장비절차서': '#805AD5',
+}
+
+// 규격/장비에 연동된 절차서의 작성 완료 여부 — 백엔드 sop_coverage.py와 동일하게 유지
+export const SOP_COVERAGE_COLORS: Record<string, string> = {
+  '없음':  '#A0AEC0',
+  '작성중': '#D69E2E',
+  '완료':  '#38A169',
+}
+
+// 절차서 상태 전이에 필요한 최소 역할 — 백엔드 sop_service.STATUS_ROLE_MAP과 동일하게 유지
+export const SOP_STATUS_ROLE_MAP: Record<string, string[]> = {
+  '초안':  ['admin', '팀원', '팀장', '임원'],
+  '검토중': ['admin', '팀원', '팀장', '임원'],
+  '승인':  ['admin', '팀장', '임원'],
+  '폐기':  ['admin', '팀장', '임원'],
 }
 
 export function nextSopNumber(existing: SOPItem[], category: string): string {

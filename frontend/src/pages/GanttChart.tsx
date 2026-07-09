@@ -29,7 +29,7 @@ export default function GanttChart({ projectId }: { projectId?: number }) {
 
   const allSchedules = (data?.projects ?? []).flatMap((p) => p.schedules)
   if (allSchedules.length === 0) {
-    return <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>표시할 일정이 없습니다. (활성 프로젝트에 등록된 시험 일정 기준)</div>
+    return <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>표시할 일정이 없습니다. (진행 중 프로젝트에 등록된 시험 일정 기준)</div>
   }
 
   // ── 날짜 범위 계산 (계획+실적 전부 포함, 앞뒤 7일 여백) ──

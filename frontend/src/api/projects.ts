@@ -1,11 +1,15 @@
 import client from './client'
 import type { StandardItem } from './standards'
 
+// 저장값은 계속 '활성'이지만(기존 필터·조회 로직 호환), 화면 표기는 '진행 중'으로 통일한다
+export const projectStatusLabel = (status: string) => (status === '활성' ? '진행 중' : status)
+
 export interface ProjectItem {
   id: number
   name: string
   project_code?: string
-  part_name?: string
+  item_id?: number
+  item_name?: string
   phase: string
   status: string
   progress_pct: number
@@ -41,6 +45,7 @@ export interface ScheduleDetailItem {
   standard_item_id: number
   standard_code: string
   name: string
+  round_no: number
   schedule_id: number | null
   test_type: string | null
   planned_start: string | null
@@ -50,6 +55,8 @@ export interface ScheduleDetailItem {
   display_status: string
   result: string | null
   data_path: string | null
+  has_ncr: boolean
+  can_retest: boolean
 }
 
 export interface ScheduleDetailGroup {

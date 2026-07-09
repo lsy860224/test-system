@@ -5,6 +5,7 @@ import Table, { type Column, type SortState } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { toggleSort, sortByKey } from '@/utils/sort'
+import { useUIStore } from '@/stores/uiStore'
 import CustomerForm from './CustomerForm'
 
 const FETCH_SIZE = 1000
@@ -31,6 +32,9 @@ export default function CustomerList() {
 
   useEffect(() => { setPage(1); load() }, [filterType])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${total}개사`) }, [total])
+
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
 
   const openNew = () => navigate('/customers/new')
@@ -56,10 +60,7 @@ export default function CustomerList() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1 }}>
-          업체 리스트 <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>총 {total}개사</span>
-        </h2>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button size="sm" onClick={openNew}>+ 신규 등록</Button>
       </div>
 
@@ -74,7 +75,7 @@ export default function CustomerList() {
               fontSize: 13, fontWeight: filterType === t ? 700 : 400,
               color: filterType === t ? 'var(--au-blue)' : 'var(--text-secondary)',
               borderBottom: filterType === t ? '2px solid var(--au-blue)' : '2px solid transparent',
-              marginBottom: -2,
+              marginBottom: -2, whiteSpace: 'nowrap', flexShrink: 0,
             }}
           >
             {t || '전체'}

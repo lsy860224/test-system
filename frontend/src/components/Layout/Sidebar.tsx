@@ -14,17 +14,20 @@ interface MenuItem {
   rolesOnly?: string[]
 }
 
+const STAFF_ROLES = ['admin', '임원', '팀장', '팀원']
+
 const MENU: MenuItem[] = [
-  { key: 'm1', label: '대시보드',    icon: '📊', path: '/dashboard' },
-  { key: 'm2', label: '규격 매트릭스', icon: '📋', path: '/standards' },
-  { key: 'm3', label: '시험 일정',   icon: '📅', path: '/schedule' },
-  { key: 'm4', label: 'NCR 추적',    icon: '⚠️', path: '/ncr' },
-  { key: 'm7', label: '외주 시험소', icon: '🏭', path: '/vendors' },
-  { key: 'm6', label: '장비 관리',   icon: '🔧', path: '/equipment' },
-  { key: 'm8', label: 'SOP 관리',    icon: '📄', path: '/sop' },
+  { key: 'm1', label: '대시보드',    icon: '📊', path: '/dashboard', rolesOnly: STAFF_ROLES },
+  { key: 'm2', label: '규격 매트릭스', icon: '📋', path: '/standards', rolesOnly: STAFF_ROLES },
+  { key: 'm3', label: '시험 일정',   icon: '📅', path: '/schedule', rolesOnly: STAFF_ROLES },
+  { key: 'm4', label: 'NCR 추적',    icon: '⚠️', path: '/ncr', rolesOnly: STAFF_ROLES },
+  { key: 'm11', label: '단건 시험',  icon: '🧪', path: '/single-tests' },
+  { key: 'm7', label: '외주 시험소', icon: '🏭', path: '/vendors', rolesOnly: STAFF_ROLES },
+  { key: 'm6', label: '장비 관리',   icon: '🔧', path: '/equipment', rolesOnly: STAFF_ROLES },
+  { key: 'm8', label: '절차서 관리',  icon: '📄', path: '/sop', rolesOnly: STAFF_ROLES },
   { key: 'm4b', label: '업무 분배',  icon: '👥', path: '/workload', rolesOnly: ['admin', '팀장'] },
   {
-    key: 'm5b', label: '정보 관리', icon: '🏢',
+    key: 'm5b', label: '정보 관리', icon: '🏢', rolesOnly: STAFF_ROLES,
     children: [
       { key: 'm5-1b', label: '업체 리스트',   path: '/customers' },
       { key: 'm5-2b', label: '프로젝트 리스트', path: '/projects' },
@@ -32,14 +35,14 @@ const MENU: MenuItem[] = [
     ],
   },
   {
-    key: 'm9', label: '임원 보고', icon: '📈',
+    key: 'm9', label: '임원 보고', icon: '📈', rolesOnly: STAFF_ROLES,
     children: [
       { key: 'm9-1', label: 'Gap Analysis', path: '/reports/gap-analysis' },
       { key: 'm9-2', label: '분기별 KPI',    path: '/reports/quarterly-kpi' },
     ],
   },
   {
-    key: 'm5', label: '정보 입력', icon: '📝',
+    key: 'm5', label: '정보 입력', icon: '📝', rolesOnly: STAFF_ROLES,
     children: [
       { key: 'm5-1a', label: '업체 등록',     path: '/customers/new' },
       { key: 'm5-2a', label: '프로젝트 등록', path: '/projects/new' },
@@ -47,8 +50,8 @@ const MENU: MenuItem[] = [
       { key: 'm5-5', label: '외주 시험소 등록', path: '/vendors/registry' },
     ],
   },
-  { key: 'm4c', label: '담당자 관리', icon: '👤', path: '/users', rolesOnly: ['admin', '팀장'] },
-  { key: 'm10', label: '데이터 내보내기', icon: '📤', path: '/export' },
+  { key: 'm4c', label: '사용자 관리', icon: '👤', path: '/users', rolesOnly: ['admin', '팀장', '임원'] },
+  { key: 'm10', label: '데이터 내보내기', icon: '📤', path: '/export', rolesOnly: STAFF_ROLES },
 ]
 
 export default function Sidebar() {

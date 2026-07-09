@@ -25,10 +25,11 @@ class SOPCreate(BaseModel):
     sop_number: str
     title: str
     version: str = "v1.0"
+    doc_type: str = "시험절차서"
     category: Optional[str] = None
     status: str = "초안"
     owner: Optional[str] = None
-    approved_by: Optional[str] = None
+    approver_id: Optional[int] = None
     issue_date: Optional[date] = None
     revision_date: Optional[date] = None
     description: Optional[str] = None
@@ -45,10 +46,11 @@ class SOPListItem(BaseModel):
     sop_number: str
     title: str
     version: str
+    doc_type: str
     category: Optional[str] = None
     status: str
     owner: Optional[str] = None
-    approved_by: Optional[str] = None
+    approver_id: Optional[int] = None
     issue_date: Optional[date] = None
     revision_date: Optional[date] = None
     created_at: datetime

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { projectsApi, type ScheduleDetailResponse, type ScheduleDetailGroup, type ScheduleDetailItem } from '@/api/projects'
+import { projectsApi, type ScheduleDetailResponse, type ScheduleDetailGroup, type ScheduleDetailItem, projectStatusLabel } from '@/api/projects'
 import { scheduleApi } from '@/api/schedules'
 import Badge from '@/components/ui/Badge'
 import ScheduleForm from './ScheduleForm'
@@ -24,6 +24,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
   const [scheduleFormState, setScheduleFormState] = useState<{ scheduleId: number | null; standardItemId?: number } | undefined>(undefined)
   const [resultFormScheduleId, setResultFormScheduleId] = useState<number | null>(null)
   const [ncrPrefill, setNcrPrefill] = useState<NCRPrefill | undefined>(undefined)
+  const [retestingId, setRetestingId] = useState<number | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -59,7 +60,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
     setResultFormScheduleId(null)
     load()
     onChanged()
-    if (result === '불합격' && detail) {
+    if (result === '불합격' && !item.has_ncr && detail) {
       setNcrPrefill({
         part_name: detail.project.item_name || detail.project.name,
         test_section: item.standard_code,
@@ -69,8 +70,22 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
     }
   }
 
+  const handleRetest = async (scheduleId: number) => {
+    setRetestingId(scheduleId)
+    try {
+      await scheduleApi.retest(scheduleId)
+      load()
+      onChanged()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '재시험 등록 중 오류가 발생했습니다'
+      alert(msg)
+    } finally {
+      setRetestingId(null)
+    }
+  }
+
   const openIssueReport = (item: ScheduleDetailItem) => {
-    if (item.result !== '불합격' || !detail) return
+    if (item.result !== '불합격' || item.has_ncr || !detail) return
     setNcrPrefill({
       part_name: detail.project.item_name || detail.project.name,
       test_section: item.standard_code,
@@ -101,7 +116,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
                 <span>아이템 <b>{detail.project.item_name ?? '-'}</b></span>
                 <span>고객사 <b>{detail.project.customer_name ?? '-'}</b></span>
                 <span>Phase <Badge label={detail.project.phase} /></span>
-                <span>프로젝트 상태 <Badge label={detail.project.status} /></span>
+                <span>프로젝트 상태 <Badge label={projectStatusLabel(detail.project.status)} /></span>
                 <span>전체 일정 <b>{detail.project.start_date ?? '-'} ~ {detail.project.target_date ?? '-'}</b></span>
               </div>
             )}
@@ -136,6 +151,8 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
                 onRegisterSchedule={(item) => setScheduleFormState({ scheduleId: null, standardItemId: item.standard_item_id })}
                 onEndTest={(item) => setResultFormScheduleId(item.schedule_id)}
                 onIssueReport={openIssueReport}
+                onRetest={handleRetest}
+                retestingId={retestingId}
               />
             ))
           )}
@@ -176,7 +193,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
 }
 
 function StandardGroupCard({
-  group, expanded, onToggle, startingId, onStart, onRegisterSchedule, onEndTest, onIssueReport,
+  group, expanded, onToggle, startingId, onStart, onRegisterSchedule, onEndTest, onIssueReport, onRetest, retestingId,
 }: {
   group: ScheduleDetailGroup
   expanded: boolean
@@ -186,6 +203,8 @@ function StandardGroupCard({
   onRegisterSchedule: (item: ScheduleDetailItem) => void
   onEndTest: (item: ScheduleDetailItem) => void
   onIssueReport: (item: ScheduleDetailItem) => void
+  onRetest: (scheduleId: number) => void
+  retestingId: number | null
 }) {
   const scheduledCount = group.items.filter((it) => it.schedule_id !== null).length
   return (
@@ -216,13 +235,14 @@ function StandardGroupCard({
               <Th w={110}>종료</Th>
               <Th w={80}>상태</Th>
               <Th w={80}>결과</Th>
-              <Th w={230}></Th>
+              <Th w={280}></Th>
             </tr>
           </thead>
           <tbody>
             {group.items.map((it) => (
-              <ItemRow key={it.standard_item_id} item={it} starting={startingId === it.schedule_id}
-                onStart={onStart} onRegisterSchedule={onRegisterSchedule} onEndTest={onEndTest} onIssueReport={onIssueReport} />
+              <ItemRow key={it.schedule_id ?? `pending-${it.standard_item_id}`} item={it} starting={startingId === it.schedule_id}
+                retesting={it.schedule_id !== null && retestingId === it.schedule_id}
+                onStart={onStart} onRegisterSchedule={onRegisterSchedule} onEndTest={onEndTest} onIssueReport={onIssueReport} onRetest={onRetest} />
             ))}
           </tbody>
         </table>
@@ -232,17 +252,19 @@ function StandardGroupCard({
 }
 
 function ItemRow({
-  item, starting, onStart, onRegisterSchedule, onEndTest, onIssueReport,
+  item, starting, retesting, onStart, onRegisterSchedule, onEndTest, onIssueReport, onRetest,
 }: {
   item: ScheduleDetailItem
   starting: boolean
+  retesting: boolean
   onStart: (scheduleId: number) => void
   onRegisterSchedule: (item: ScheduleDetailItem) => void
   onEndTest: (item: ScheduleDetailItem) => void
   onIssueReport: (item: ScheduleDetailItem) => void
+  onRetest: (scheduleId: number) => void
 }) {
   const endedEarly = !!(item.actual_end && item.planned_end && item.actual_end < item.planned_end)
-  const canIssueReport = item.result === '불합격'
+  const canIssueReport = item.result === '불합격' && !item.has_ncr
 
   return (
     <tr style={{ borderTop: '1px solid var(--border)' }}>
@@ -268,7 +290,15 @@ function ItemRow({
               {item.display_status === '진행중' && (
                 <ActionBtn onClick={() => onEndTest(item)}>시험 종료</ActionBtn>
               )}
-              <ActionBtn onClick={() => onIssueReport(item)} disabled={!canIssueReport} danger>이상발생보고</ActionBtn>
+              {item.display_status === '완료' && (
+                <ActionBtn onClick={() => onEndTest(item)}>결과 수정</ActionBtn>
+              )}
+              {item.can_retest && (
+                <ActionBtn onClick={() => onRetest(item.schedule_id!)} loading={retesting}>재시험</ActionBtn>
+              )}
+              <ActionBtn onClick={() => onIssueReport(item)} disabled={!canIssueReport} danger>
+                {item.result === '불합격' && item.has_ncr ? 'NCR 작성됨' : '이상발생보고'}
+              </ActionBtn>
             </>
           )}
         </div>

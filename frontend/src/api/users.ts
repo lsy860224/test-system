@@ -10,7 +10,7 @@ export interface AppUser {
   created_at: string
 }
 
-export const USER_ROLES = ['admin', '팀장', '팀원']
+export const USER_ROLES = ['admin', '임원', '팀장', '팀원', '의뢰자']
 
 export const usersApi = {
   list: () => client.get<AppUser[]>('/users/').then((r) => r.data),

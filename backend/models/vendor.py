@@ -40,7 +40,7 @@ class VendorTestScope(Base):
     standard_no          = Column(String(100), nullable=True)  # 적용 규격 번호
     unit_price           = Column(Integer,     nullable=True)  # 단가 (원)
     lead_days            = Column(Integer,     nullable=True)  # 납기 일수
-    accreditation_scope  = Column(String(200), nullable=True)  # KOLAS 인정 범위
+    kolas_report         = Column(String(10),  nullable=True)  # KOLAS 공인 성적서 발급 가능 여부: 가능 / 불가능
     notes                = Column(Text,        nullable=True)
     created_at           = Column(DateTime, server_default=func.now())
 
@@ -53,13 +53,18 @@ class VendorOrder(Base):
 
     id            = Column(Integer, primary_key=True, autoincrement=True)
     vendor_id     = Column(Integer, ForeignKey("vendor_labs.id", ondelete="CASCADE"), nullable=False)
-    project_name  = Column(String(200), nullable=False)
+    project_id    = Column(Integer, ForeignKey("projects.id"), nullable=True)  # 등록된 프로젝트와 연계
+    schedule_id   = Column(Integer, ForeignKey("test_schedules.id"), nullable=True)  # 시험 일정과 연계 (진행중/완료 자동 반영)
+    single_test_request_id = Column(Integer, ForeignKey("single_test_requests.id"), nullable=True)  # 단건 시험 요청과 연계
     test_items    = Column(Text,   nullable=True)   # 시험 항목 목록 (자유 텍스트)
     order_date    = Column(Date,   nullable=True)
     due_date      = Column(Date,   nullable=True)
-    status        = Column(String(50), default="발주전")
+    status        = Column(String(50), default="견적의뢰")
     total_amount  = Column(Integer, nullable=True)
     notes         = Column(Text,   nullable=True)
     created_at    = Column(DateTime, server_default=func.now())
 
-    vendor = relationship("VendorLab", back_populates="orders")
+    vendor   = relationship("VendorLab", back_populates="orders")
+    project  = relationship("Project")
+    schedule = relationship("TestSchedule")
+    single_test_request = relationship("SingleTestRequest", back_populates="vendor_orders")

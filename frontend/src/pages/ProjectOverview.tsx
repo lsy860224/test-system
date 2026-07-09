@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { projectsApi, type ProjectItem } from '@/api/projects'
+import { projectsApi, type ProjectItem, projectStatusLabel } from '@/api/projects'
 import { customersApi, type CustomerListItem } from '@/api/customers'
 import { usersApi, type AppUser } from '@/api/users'
 import Table, { type Column, type SortState } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { toggleSort, sortByKey } from '@/utils/sort'
+import { useUIStore } from '@/stores/uiStore'
 import ProjectForm from '@/pages/ProjectForm'
 
 const PHASES = ['RFQ', '개발', 'DV', 'PV', '양산준비', '양산']
@@ -25,7 +26,7 @@ export default function ProjectOverview() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('활성')
+  const [filterStatus, setFilterStatus] = useState('')
   const [filterPhase, setFilterPhase] = useState('')
   const [filterCustomer, setFilterCustomer] = useState<number | ''>('')
   const [page, setPage] = useState(1)
@@ -50,6 +51,9 @@ export default function ProjectOverview() {
   useEffect(() => { usersApi.list().then(setUsers) }, [])
   useEffect(() => { setPage(1); load() }, [filterStatus, filterPhase, filterCustomer])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${total}건`) }, [total])
+
   const handleSaved = () => { setFormProjectId(undefined); load() }
 
   const customerName = (id: number) => customers.find((c) => c.id === id)?.name
@@ -66,9 +70,9 @@ export default function ProjectOverview() {
       key: 'customer_name', header: '고객사', width: 140, sortable: true,
       render: (r) => r.customer_name ?? <span style={{ color: 'var(--text-muted)' }}>-</span>,
     },
-    { key: 'part_name',    header: '부품명',        width: 160, sortable: true, render: (r) => r.part_name ?? '-' },
+    { key: 'item_name',    header: '아이템',        width: 160, sortable: true, render: (r) => r.item_name ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
     { key: 'phase',        header: '단계',          width: 90,  sortable: true, render: (r) => <Badge label={r.phase} /> },
-    { key: 'status',       header: '상태',          width: 80,  sortable: true, render: (r) => <Badge label={r.status} /> },
+    { key: 'status',       header: '상태',          width: 80,  sortable: true, render: (r) => <Badge label={projectStatusLabel(r.status)} /> },
     {
       key: 'progress_pct', header: '진행률', width: 130, sortable: true,
       render: (r) => (
@@ -86,16 +90,13 @@ export default function ProjectOverview() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1 }}>
-          프로젝트 리스트 <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>총 {total}건</span>
-        </h2>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button size="sm" onClick={() => navigate('/projects/new')}>+ 프로젝트 등록</Button>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
-          placeholder="프로젝트명 / 코드 / 부품명 검색"
+          placeholder="프로젝트명 / 코드 / 아이템명 검색"
           value={search} onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && load()}
           style={{ padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, width: 240 }}
@@ -112,7 +113,7 @@ export default function ProjectOverview() {
         </select>
         <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value) }}
           style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
-          {['', '활성', '완료', '보류', '취소'].map((s) => <option key={s} value={s}>{s || '전체 상태'}</option>)}
+          {['', '활성', '완료', '보류', '지연', '취소'].map((s) => <option key={s} value={s}>{s ? projectStatusLabel(s) : '전체 상태'}</option>)}
         </select>
         <Button variant="secondary" size="sm" onClick={load}>검색</Button>
       </div>

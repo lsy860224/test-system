@@ -5,6 +5,7 @@ import SortableTh from '@/components/ui/SortableTh'
 import { toggleSort } from '@/utils/sort'
 import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
 import VendorForm from '@/pages/VendorForm'
+import { useUIStore } from '@/stores/uiStore'
 
 type Tab = '시험소 목록' | '단가 비교'
 
@@ -31,6 +32,9 @@ export default function VendorList() {
 
   useEffect(() => { setPage(1); load() }, [filterType, filterKolas])
 
+  const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
+  useEffect(() => { setPageCountLabel(`총 ${total}개 시험소`) }, [total])
+
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
 
@@ -48,12 +52,7 @@ export default function VendorList() {
   return (
     <div style={{ padding: 28, maxWidth: 1200 }}>
       {/* page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>외주 시험소</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>외주 시험소 단가표·발주이력·단가비교 관리 (시험소 신규 등록은 기본 정보 &gt; 외주 시험소 등록에서)</p>
-        </div>
-      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>외주 시험소 단가표·발주이력·단가비교 관리 (시험소 신규 등록은 기본 정보 &gt; 외주 시험소 등록에서)</p>
 
       {/* sub-tabs */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
@@ -63,7 +62,7 @@ export default function VendorList() {
             fontSize: 13, fontWeight: 600,
             color: tab === t ? 'var(--primary)' : 'var(--text-muted)',
             borderBottom: tab === t ? '2px solid var(--primary)' : '2px solid transparent',
-            marginBottom: -1,
+            marginBottom: -1, whiteSpace: 'nowrap',
           }}>{t}</button>
         ))}
       </div>
@@ -82,16 +81,12 @@ export default function VendorList() {
               <option value="">전체 유형</option>
               {LAB_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
               <input type="checkbox" checked={filterKolas} onChange={(e) => { setFilterKolas(e.target.checked); setPage(1) }} />
               KOLAS만 보기
             </label>
             <Button type="submit" size="sm">검색</Button>
           </form>
-
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>
-            총 <strong style={{ color: 'var(--text-primary)' }}>{total}</strong>개 시험소
-          </div>
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>로딩 중...</div>
@@ -124,7 +119,9 @@ export default function VendorList() {
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover, #F7F8FA)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = '')}
                   >
-                    <td style={{ padding: '10px 12px', fontWeight: 600 }}>{v.name}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 600, maxWidth: 200 }}>
+                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                    </td>
                     <td style={{ padding: '10px 12px' }}>
                       {v.short_name ? (
                         <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#EBF4FF', color: 'var(--primary)' }}>
@@ -132,14 +129,14 @@ export default function VendorList() {
                         </span>
                       ) : '-'}
                     </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{v.lab_type ?? '-'}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{v.lab_type ?? '-'}</td>
                     <td style={{ padding: '10px 12px' }}>
                       {v.kolas_certified ? (
                         <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#E6FFEE', color: '#38A169' }}>KOLAS</span>
                       ) : '-'}
                     </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{v.contact_name ?? '-'}</td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{v.contact_phone ?? '-'}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{v.contact_name ?? '-'}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{v.contact_phone ?? '-'}</td>
                     <td style={{ padding: '10px 12px' }}>
                       <span style={{ fontWeight: 600 }}>{v.scope_count}</span>
                       <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>개</span>
@@ -218,7 +215,7 @@ export default function VendorList() {
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                       납기 {r.lead_days != null ? `${r.lead_days}일` : '-'}
-                      {r.accreditation_scope && <span style={{ marginLeft: 8 }}>| {r.accreditation_scope}</span>}
+                      {r.kolas_report && <span style={{ marginLeft: 8 }}>| KOLAS 공인 성적서 {r.kolas_report}</span>}
                     </div>
                     {r.notes && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>{r.notes}</p>}
                   </div>

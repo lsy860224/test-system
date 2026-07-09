@@ -89,6 +89,8 @@ class EquipmentListItem(BaseModel):
     purchase_date: Optional[date] = None
     latest_expiry: Optional[date] = None      # 서비스 레이어 계산
     days_to_expiry: Optional[int] = None      # 서비스 레이어 계산
+    sop_status: str = "없음"   # 없음/작성중/완료 — 연동된 장비절차서 중 최고 상태
+    sop_count: int = 0
     created_at: datetime
 
     class Config:

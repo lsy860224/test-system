@@ -129,7 +129,7 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
               fontSize: 13, fontWeight: tab === t ? 700 : 400,
               color: tab === t ? 'var(--au-blue)' : 'var(--text-secondary)',
               borderBottom: tab === t ? '2px solid var(--au-blue)' : '2px solid transparent',
-              marginBottom: -1,
+              marginBottom: -1, whiteSpace: 'nowrap',
             }}>
               {t === 'info' ? '업체 정보' : t === 'contacts' ? `담당자 (${contacts.filter(c => c.name?.trim()).length})` : `첨부파일 (${attachments.length + pendingFiles.length})`}
             </button>

@@ -85,7 +85,7 @@ export default function WorkAssignment() {
     },
     {
       key: 'standards', header: '규격 항목', width: 140,
-      render: (r) => <CountCell items={r.standards} pending={r.standards.filter((s) => s.status === '대기' || s.status === '진행중').length} />,
+      render: (r) => <CountCell items={r.standards} pending={r.standards.filter((s) => s.source_type === '검토중').length} pendingLabel="검토중" />,
     },
     {
       key: 'schedules', header: '시험 일정', width: 140,
@@ -151,7 +151,7 @@ function DetailPanel({ row }: { row: AssigneeRow }) {
           {row.standards.map((s) => (
             <Line key={s.id}>
               <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', marginRight: 8 }}>{s.standard_code}</span>
-              {s.name} <Badge label={s.status} />
+              {s.name} <Badge label={s.source_type} />
             </Line>
           ))}
         </Section>

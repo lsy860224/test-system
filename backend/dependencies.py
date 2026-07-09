@@ -32,3 +32,11 @@ def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
+
+REQUESTER_ROLE = "의뢰자"
+
+def require_staff(current_user=Depends(get_current_user)):
+    """의뢰자(외부 요청자) role은 단건 시험 요청 모듈 외 나머지 업무 모듈에 접근할 수 없다."""
+    if current_user.role == REQUESTER_ROLE:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="시험평가팀만 접근할 수 있습니다")
+    return current_user

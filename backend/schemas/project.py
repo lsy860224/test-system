@@ -25,7 +25,6 @@ class ProjectBase(BaseModel):
     item_id: Optional[int] = None
     name: str
     project_code: Optional[str] = None
-    part_name: Optional[str] = None
     phase: str = "개발"
     status: str = "활성"
     start_date: Optional[date] = None
@@ -53,7 +52,7 @@ class ProjectListOut(BaseModel):
     name: str
     project_code: Optional[str]
     item_id: Optional[int] = None
-    part_name: Optional[str]
+    item_name: Optional[str] = None
     phase: str
     status: str
     progress_pct: int

@@ -2,32 +2,11 @@ from pydantic import BaseModel
 from datetime import date, datetime
 from typing import Optional
 
-class VendorBase(BaseModel):
-    name: str
-    location: Optional[str] = None
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    accreditation_type: Optional[str] = None
-    accreditation_number: Optional[str] = None
-    accreditation_scope: Optional[str] = None
-    lead_time_days: Optional[int] = None
-    notes: Optional[str] = None
-
-class VendorCreate(VendorBase):
-    pass
-
-class VendorOut(VendorBase):
-    id: int
-    is_active: bool
-    model_config = {"from_attributes": True}
-
 class TestScheduleBase(BaseModel):
     project_id: int
     standard_item_id: int
     test_type: str
     equipment_id: Optional[int] = None
-    vendor_id: Optional[int] = None
     planned_start: date
     planned_end: date
     actual_start: Optional[date] = None
@@ -60,7 +39,6 @@ class TestScheduleListOut(BaseModel):
     project_id: int
     standard_item_id: int
     project_name: Optional[str] = None
-    project_part_name: Optional[str] = None
     standard_name: Optional[str] = None
     standard_code: Optional[str] = None
     test_type: str

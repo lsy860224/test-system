@@ -6,11 +6,13 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login, token } = useAuthStore()
+  const { login, token, user } = useAuthStore()
 
-  // 이미 로그인된 경우 대시보드로 이동
+  const landingPath = (role?: string) => (role === '의뢰자' ? '/single-tests' : '/dashboard')
+
+  // 이미 로그인된 경우 역할별 초기 화면으로 이동
   useEffect(() => {
-    if (token) window.location.href = '/dashboard'
+    if (token) window.location.href = landingPath(user?.role)
   }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,7 +21,7 @@ export default function Login() {
     setLoading(true)
     try {
       await login(username, password)
-      window.location.href = '/dashboard'
+      window.location.href = landingPath(useAuthStore.getState().user?.role)
     } catch {
       setError('아이디 또는 비밀번호가 올바르지 않습니다')
     } finally {

@@ -3,14 +3,53 @@ from sqlalchemy import or_
 from fastapi import HTTPException
 
 from models.vendor import VendorLab, VendorTestScope, VendorOrder
+from models.schedule import TestSchedule
 from schemas.vendor import VendorCreate, VendorUpdate, TestScopeCreate, OrderCreate
 from services import pagination_helper
+from services.schedule_service import compute_status
 
 
 def _attach_counts(item: VendorLab) -> VendorLab:
     item.scope_count = len(item.test_scopes) if item.test_scopes else 0
     item.order_count = len(item.orders) if item.orders else 0
+    for order in item.orders or []:
+        _attach_order_display(order)
     return item
+
+
+def _attach_order_display(order: VendorOrder) -> VendorOrder:
+    order.project_name = order.project.name if order.project else None
+    order.single_test_request_number = order.single_test_request.request_number if order.single_test_request else None
+    if order.schedule:
+        order.schedule_status = compute_status(order.schedule)
+        order.schedule_test_type = order.schedule.test_type
+        order.schedule_planned_start = order.schedule.planned_start
+        order.schedule_planned_end = order.schedule.planned_end
+    else:
+        order.schedule_status = None
+        order.schedule_test_type = None
+        order.schedule_planned_start = None
+        order.schedule_planned_end = None
+    return order
+
+
+def _validate_schedule_project(db: Session, schedule_id: int, project_id: int) -> None:
+    schedule = db.query(TestSchedule).filter(TestSchedule.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="연계할 시험 일정을 찾을 수 없습니다")
+    if schedule.project_id != project_id:
+        raise HTTPException(status_code=400, detail="선택한 시험 일정이 해당 프로젝트에 속하지 않습니다")
+
+
+def _sync_status_with_schedule(order: VendorOrder) -> None:
+    """발주에 연계된 시험 일정이 이미 진행중/완료 상태면 발주 상태를 즉시 맞춘다."""
+    if not order.schedule or order.status == "취소":
+        return
+    display_status = compute_status(order.schedule)
+    target = {"진행중": "진행중", "완료": "완료"}.get(display_status)
+    if not target or (order.status == "완료" and target == "진행중"):
+        return
+    order.status = target
 
 
 # ── 시험소 CRUD ────────────────────────────────────────────
@@ -20,7 +59,9 @@ def list_vendors(
 ) -> dict:
     q = db.query(VendorLab).options(
         joinedload(VendorLab.test_scopes),
-        joinedload(VendorLab.orders),
+        joinedload(VendorLab.orders).joinedload(VendorOrder.project),
+        joinedload(VendorLab.orders).joinedload(VendorOrder.schedule),
+        joinedload(VendorLab.orders).joinedload(VendorOrder.single_test_request),
     ).filter(VendorLab.is_active == True)
 
     if search:
@@ -42,7 +83,11 @@ def list_vendors(
 def get_vendor(db: Session, vendor_id: int) -> VendorLab:
     item = (
         db.query(VendorLab)
-        .options(joinedload(VendorLab.test_scopes), joinedload(VendorLab.orders))
+        .options(
+            joinedload(VendorLab.test_scopes),
+            joinedload(VendorLab.orders).joinedload(VendorOrder.project),
+            joinedload(VendorLab.orders).joinedload(VendorOrder.schedule),
+        )
         .filter(VendorLab.id == vendor_id)
         .first()
     )
@@ -121,11 +166,18 @@ def delete_test_scope(db: Session, vendor_id: int, scope_id: int):
 # ── 발주 이력 ─────────────────────────────────────────────
 def add_order(db: Session, vendor_id: int, body: OrderCreate) -> VendorOrder:
     get_vendor(db, vendor_id)
+    if body.schedule_id:
+        if not body.project_id:
+            raise HTTPException(status_code=400, detail="시험 일정 연계는 프로젝트 발주에서만 가능합니다")
+        _validate_schedule_project(db, body.schedule_id, body.project_id)
     record = VendorOrder(vendor_id=vendor_id, **body.model_dump())
     db.add(record)
     db.commit()
     db.refresh(record)
-    return record
+    _sync_status_with_schedule(record)
+    db.commit()
+    db.refresh(record)
+    return _attach_order_display(record)
 
 
 def update_order(
@@ -138,11 +190,18 @@ def update_order(
     )
     if not record:
         raise HTTPException(status_code=404, detail="발주 이력을 찾을 수 없습니다")
+    if body.schedule_id:
+        if not body.project_id:
+            raise HTTPException(status_code=400, detail="시험 일정 연계는 프로젝트 발주에서만 가능합니다")
+        _validate_schedule_project(db, body.schedule_id, body.project_id)
     for k, v in body.model_dump().items():
         setattr(record, k, v)
     db.commit()
     db.refresh(record)
-    return record
+    _sync_status_with_schedule(record)
+    db.commit()
+    db.refresh(record)
+    return _attach_order_display(record)
 
 
 def delete_order(db: Session, vendor_id: int, order_id: int):
@@ -155,6 +214,17 @@ def delete_order(db: Session, vendor_id: int, order_id: int):
         raise HTTPException(status_code=404, detail="발주 이력을 찾을 수 없습니다")
     db.delete(record)
     db.commit()
+
+
+def list_orders_by_single_test_request(db: Session, request_id: int) -> list[VendorOrder]:
+    orders = (
+        db.query(VendorOrder)
+        .options(joinedload(VendorOrder.project), joinedload(VendorOrder.schedule), joinedload(VendorOrder.single_test_request))
+        .filter(VendorOrder.single_test_request_id == request_id)
+        .order_by(VendorOrder.created_at.desc())
+        .all()
+    )
+    return [_attach_order_display(o) for o in orders]
 
 
 # ── 단가 비교 ─────────────────────────────────────────────
@@ -178,7 +248,7 @@ def compare_prices(db: Session, test_name: str) -> list[dict]:
             "kolas_certified": s.vendor.kolas_certified,
             "unit_price": s.unit_price,
             "lead_days": s.lead_days,
-            "accreditation_scope": s.accreditation_scope,
+            "kolas_report": s.kolas_report,
             "notes": s.notes,
         })
     return sorted(result, key=lambda x: (x["unit_price"] is None, x["unit_price"] or 0))

@@ -49,15 +49,15 @@ export default function Dashboard() {
       </div>
 
       {/* Row 1: 3개 KPI 카드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, marginBottom: 14 }}>
 
         {/* 시험 역량 현황 — 규격 커버리지 도넛 게이지 */}
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={iconBox('#2B2F82')}>🔬</div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>시험 역량 현황</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>시험 역량 현황</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
             <DonutGauge pct={standards?.coverage_pct ?? 0} color="var(--au-indigo)" size={90} />
             <div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -71,7 +71,7 @@ export default function Dashboard() {
                 ].map((row) => (
                   <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, flex: 1, color: 'var(--text-secondary)' }}>{row.label}</span>
+                    <span style={{ fontSize: 11, flex: 1, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{row.label}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: row.color }}>{row.count}건</span>
                   </div>
                 ))}
@@ -84,7 +84,7 @@ export default function Dashboard() {
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={iconBox('#E53E3E')}>⚠️</div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>미결 NCR</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>미결 NCR</span>
           </div>
           <div style={{ fontSize: 32, fontWeight: 700, color: '#E53E3E', lineHeight: 1, marginBottom: 6 }}>
             {(ncr?.managed ?? 0) + (ncr?.overdue ?? 0)}건
@@ -100,38 +100,37 @@ export default function Dashboard() {
             ].map((row) => (
               <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, flex: 1, color: 'var(--text-secondary)' }}>{row.label}</span>
+                <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{row.label}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: row.color }}>{row.count}건</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 진행 중 프로젝트 + 빠른이동 */}
+        {/* 프로젝트 현황 */}
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={iconBox('#38A169')}>🏗️</div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>진행 중 프로젝트</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>프로젝트</span>
           </div>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#38A169', lineHeight: 1, marginBottom: 16 }}>
-            {data?.projects.active ?? 0}건
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#38A169', lineHeight: 1, marginBottom: 14 }}>
+            {data?.projects.total ?? 0}건
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>빠른 이동</div>
-          {[
-            { label: '규격 매트릭스 관리', path: '/standards', icon: '📋' },
-            { label: 'NCR 신규 등록',    path: '/ncr',       icon: '⚠️' },
-            { label: '시험 일정 확인',   path: '/schedule',  icon: '📅' },
-          ].map((item) => (
-            <a key={item.label} href={item.path} style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
-              color: 'var(--text-primary)', fontSize: 12,
-              borderBottom: '1px solid var(--border)', textDecoration: 'none',
-            }}>
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-              <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>→</span>
-            </a>
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {[
+              { key: '활성', label: '진행 중', color: '#3182CE' },
+              { key: '완료', label: '완료', color: '#38A169' },
+              { key: '보류', label: '보류', color: '#D69E2E' },
+              { key: '지연', label: '지연', color: '#E53E3E' },
+              { key: '취소', label: '취소', color: '#718096' },
+            ].map((row) => (
+              <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: row.color }}>{data?.projects.by_status[row.key] ?? 0}건</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -139,11 +138,11 @@ export default function Dashboard() {
       <div style={{ ...card, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <div style={iconBox('#1565C0')}>📅</div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>시험 일정 현황</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>시험 일정 현황</span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>· {year}년 기준</span>
           <a href="/schedule" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--au-blue)', textDecoration: 'none', fontWeight: 600 }}>상세 →</a>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
           {[
             { label: '예정', desc: '프로젝트에 포함, 일정 미수립', count: sched?.expected ?? 0, color: '#A0AEC0', bg: '#F7FAFC' },
             { label: '계획', desc: '시험 일정 확정', count: sched?.planned ?? 0, color: '#D69E2E', bg: '#FFFBEB' },
@@ -167,7 +166,7 @@ export default function Dashboard() {
       <div style={{ ...card, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <div style={iconBox('#E53E3E')}>📈</div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>월별 NCR 트렌드</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>월별 NCR 트렌드</span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>· 최근 6개월</span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -184,14 +183,14 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Row 3: P2 현황 — 장비 / SOP / 외주 시험소 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+      {/* Row 3: P2 현황 — 장비 / 절차서 / 외주 시험소 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, marginBottom: 14 }}>
 
         {/* 장비 현황 */}
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={iconBox('#744210')}>🔧</div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>장비 현황</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>장비 현황</span>
             <a href="/equipment" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--au-blue)', textDecoration: 'none' }}>상세 →</a>
           </div>
           <div style={{ fontSize: 28, fontWeight: 700, color: '#744210', lineHeight: 1, marginBottom: 6 }}>
@@ -201,7 +200,7 @@ export default function Dashboard() {
             {Object.entries(eq?.by_status ?? {}).map(([status, cnt]) => (
               <div key={status} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: status === '운용중' ? '#38A169' : status === '교정중' ? '#D69E2E' : '#A0AEC0', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, flex: 1, color: 'var(--text-secondary)' }}>{status}</span>
+                <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{status}</span>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>{cnt}대</span>
               </div>
             ))}
@@ -233,11 +232,11 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* SOP 현황 */}
+        {/* 절차서 현황 */}
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={iconBox('#553C9A')}>📄</div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>SOP 현황</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>절차서 현황</span>
             <a href="/sop" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--au-blue)', textDecoration: 'none' }}>상세 →</a>
           </div>
           <div style={{ fontSize: 28, fontWeight: 700, color: '#553C9A', lineHeight: 1, marginBottom: 6 }}>
@@ -254,7 +253,7 @@ export default function Dashboard() {
             ].map((row) => (
               <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, flex: 1, color: 'var(--text-secondary)' }}>{row.label}</span>
+                <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{row.label}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: row.color }}>{row.count}건</span>
               </div>
             ))}
@@ -265,7 +264,7 @@ export default function Dashboard() {
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={iconBox('#065A82')}>🏭</div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>외주 시험소</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>외주 시험소</span>
             <a href="/vendors" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--au-blue)', textDecoration: 'none' }}>상세 →</a>
           </div>
           <div style={{ fontSize: 28, fontWeight: 700, color: '#065A82', lineHeight: 1, marginBottom: 6 }}>
@@ -279,7 +278,7 @@ export default function Dashboard() {
             ].map((row) => (
               <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, flex: 1, color: 'var(--text-secondary)' }}>{row.label}</span>
+                <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{row.label}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: row.color }}>{row.count}개소</span>
               </div>
             ))}

@@ -18,6 +18,8 @@ export interface Equipment {
   updated_at?: string
   latest_expiry?: string
   days_to_expiry?: number
+  sop_status: string
+  sop_count: number
   calibrations: CalibrationRecord[]
   investments?: InvestmentRecord[]
 }
