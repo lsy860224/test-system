@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
+import NotificationBell from './NotificationBell'
 
 const TITLES: Record<string, string> = {
   '/dashboard': '대시보드',
@@ -54,6 +55,7 @@ export default function Topbar() {
       <div style={{ flex: 1 }} />
       {user && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <NotificationBell />
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user.name}</span>
           <button
             onClick={handleLogout}

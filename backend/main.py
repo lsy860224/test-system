@@ -5,7 +5,7 @@ import os
 
 from config import settings
 from database import init_db, SessionLocal
-from routers import auth, customers, standards, ncr, dashboard, projects, schedules, equipment, vendors, sop, reports, export, items, users, todos
+from routers import auth, customers, standards, ncr, dashboard, projects, schedules, equipment, vendors, sop, reports, export, items, users, todos, notifications
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,6 +45,7 @@ app.include_router(export.router)
 app.include_router(items.router)
 app.include_router(users.router)
 app.include_router(todos.router)
+app.include_router(notifications.router)
 
 os.makedirs(settings.upload_dir, exist_ok=True)
 
