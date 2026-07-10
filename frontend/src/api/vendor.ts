@@ -3,15 +3,15 @@ import client from './client'
 export interface VendorLab {
   id: number
   name: string
-  short_name?: string
-  lab_type?: string
+  short_name?: string | null
+  lab_type?: string | null
   kolas_certified: boolean
-  contact_name?: string
-  contact_phone?: string
-  contact_email?: string
-  address?: string
-  website?: string
-  notes?: string
+  contact_name?: string | null
+  contact_phone?: string | null
+  contact_email?: string | null
+  address?: string | null
+  website?: string | null
+  notes?: string | null
   is_active: boolean
   created_at: string
   scope_count: number
@@ -25,11 +25,11 @@ export interface TestScope {
   vendor_id: number
   standard_item_id?: number
   test_name: string
-  standard_no?: string
-  unit_price?: number
-  lead_days?: number
-  kolas_report?: string
-  notes?: string
+  standard_no?: string | null
+  unit_price?: number | null
+  lead_days?: number | null
+  kolas_report?: string | null
+  notes?: string | null
   created_at: string
 }
 
@@ -40,17 +40,17 @@ export interface VendorOrder {
   project_name?: string
   single_test_request_id?: number
   single_test_request_number?: string
-  schedule_id?: number
+  schedule_id?: number | null
   schedule_status?: string
   schedule_test_type?: string
   schedule_planned_start?: string
   schedule_planned_end?: string
-  test_items?: string
-  order_date?: string
-  due_date?: string
+  test_items?: string | null
+  order_date?: string | null
+  due_date?: string | null
   status: string
-  total_amount?: number
-  notes?: string
+  total_amount?: number | null
+  notes?: string | null
   created_at: string
 }
 

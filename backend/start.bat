@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 cd /d "%~dp0"
 
 REM venv가 없으면 Python 3.12로 생성 및 패키지 설치
@@ -11,7 +11,7 @@ if not exist "venv\Scripts\python.exe" (
         pause
         exit /b 1
     )
-    echo [AU] 패키지 설치 중 (최초 1회)...
+    echo [AU] 패키지 설치 중 ^(최초 1회^)...
     venv\Scripts\pip install -r requirements.txt
 )
 

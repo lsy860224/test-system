@@ -82,10 +82,22 @@ export default function Sidebar() {
       {/* logo */}
       <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
         {collapsed ? (
-          <div style={{ fontSize: 20, textAlign: 'center' }}>AU</div>
+          <div style={{ fontSize: 20, textAlign: 'center', position: 'relative' }}>
+            AU
+            {import.meta.env.DEV && (
+              <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: '#facc15' }} />
+            )}
+          </div>
         ) : (
           <>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2 }}>AU INC.</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+              AU INC.
+              {import.meta.env.DEV && (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: '#111', background: '#facc15', padding: '1px 6px', borderRadius: 4 }}>
+                  DEV
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>시험평가팀 시스템</div>
           </>
         )}

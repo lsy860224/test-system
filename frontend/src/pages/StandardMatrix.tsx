@@ -17,6 +17,26 @@ interface StandardGroup {
 const strCmp = (a?: string, b?: string) => (a ?? '').localeCompare(b ?? '', 'ko')
 const SOURCE_TYPES = ['자체', '외주', '검토중']
 
+// "5.2.2" < "5.2.10" 처럼 점으로 구분된 숫자 구간을 실제 숫자로 비교 (항목 No. 정렬용)
+function naturalCmp(a?: string, b?: string): number {
+  const ax = (a ?? '').match(/\d+|\D+/g) ?? []
+  const bx = (b ?? '').match(/\d+|\D+/g) ?? []
+  const len = Math.max(ax.length, bx.length)
+  for (let i = 0; i < len; i++) {
+    const an = ax[i] ?? ''
+    const bn = bx[i] ?? ''
+    if (an === bn) continue
+    if (/^\d+$/.test(an) && /^\d+$/.test(bn)) {
+      const diff = parseInt(an, 10) - parseInt(bn, 10)
+      if (diff !== 0) return diff
+    } else {
+      const cmp = an.localeCompare(bn, 'ko')
+      if (cmp !== 0) return cmp
+    }
+  }
+  return 0
+}
+
 function sortGroups(groups: StandardGroup[], sort: SortState): StandardGroup[] {
   const dir = sort.dir === 'asc' ? 1 : -1
   return [...groups].sort((a, b) => {
@@ -29,9 +49,10 @@ function sortGroups(groups: StandardGroup[], sort: SortState): StandardGroup[] {
 
 function sortItems(items: StandardItem[], sort: SortState): StandardItem[] {
   const dir = sort.dir === 'asc' ? 1 : -1
+  const cmp = sort.key === 'standard_code' ? naturalCmp : strCmp
   return [...items].sort((a, b) => {
     const key = sort.key as keyof StandardItem
-    return strCmp(a[key] as string | undefined, b[key] as string | undefined) * dir
+    return cmp(a[key] as string | undefined, b[key] as string | undefined) * dir
   })
 }
 

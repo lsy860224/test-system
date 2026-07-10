@@ -4,16 +4,16 @@ import { downloadBlob } from '@/utils/downloadFile'
 export interface Equipment {
   id: number
   name: string
-  model?: string
-  manufacturer?: string
-  serial_number?: string
-  asset_number?: string
-  category?: string
-  manager?: string
+  model?: string | null
+  manufacturer?: string | null
+  serial_number?: string | null
+  asset_number?: string | null
+  category?: string | null
+  manager?: string | null
   status: string
-  location?: string
-  purchase_date?: string
-  notes?: string
+  location?: string | null
+  purchase_date?: string | null
+  notes?: string | null
   created_at: string
   updated_at?: string
   latest_expiry?: string
@@ -29,11 +29,11 @@ export interface CalibrationRecord {
   equipment_id: number
   calibration_type: string
   calibration_date: string
-  next_due_date?: string
+  next_due_date?: string | null
   result: string
-  calibration_body?: string
-  certificate_number?: string
-  notes?: string
+  calibration_body?: string | null
+  certificate_number?: string | null
+  notes?: string | null
   created_at: string
 }
 
@@ -42,9 +42,9 @@ export interface InvestmentRecord {
   equipment_id?: number
   year: number
   invest_type: string
-  item_name?: string
-  amount_est?: number
-  notes?: string
+  item_name?: string | null
+  amount_est?: number | null
+  notes?: string | null
   created_at: string
   equipment_name?: string
 }

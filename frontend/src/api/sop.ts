@@ -9,15 +9,15 @@ export interface SOPItem {
   title: string
   version: string
   doc_type: string
-  category?: string
+  category?: string | null
   status: string
-  owner?: string
+  owner?: string | null
   approver_id?: number | null
-  issue_date?: string
-  revision_date?: string
-  description?: string
-  content?: string
-  notes?: string
+  issue_date?: string | null
+  revision_date?: string | null
+  description?: string | null
+  content?: string | null
+  notes?: string | null
   created_at: string
   updated_at?: string
   revisions: SOPRevision[]

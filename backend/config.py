@@ -1,6 +1,9 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    environment: str = "development"  # development | production — start-prod.bat이 production으로 오버라이드
     app_name: str = "AU Inc. 시험평가팀 시스템"
     database_url: str = "sqlite:///./au_test_system.db"
     secret_key: str = "au-inc-secret-key-change-in-production-2026"

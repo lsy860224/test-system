@@ -10,16 +10,24 @@ For PM Agent domain context, see the parent `../CLAUDE.md`.
 ### Backend (FastAPI + SQLite)
 ```
 venv:    backend/venv/Scripts/python.exe
-실행:    python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-           (backend/ 디렉터리에서 실행)
-DB:      backend/au_test_system.db  (절대 경로 필수 — CWD 상대경로 오류 주의)
-포트:    8000 (이미 실행 중인지 확인: netstat -ano | findstr ":8000")
+개발 실행: backend/start.bat  또는  python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+           (backend/ 디렉터리에서 실행) → 포트 8000
+운영 실행: backend/start-prod.bat  (--reload 없음, preflight_check.py가 기동 전 자동 검증) → 포트 8001
+           dev(8000)와 포트가 달라 동시 기동 가능 (2026-07-10부터)
+DB:      backend/.env의 DATABASE_URL로 결정 (config.py가 pydantic-settings로 로드)
+           개발: au_test_system.db (seed/demo 데이터)
+           운영: au_test_system_prod.db (start-prod.bat이 환경변수로 오버라이드, 실데이터)
+           절대 경로 필수 — CWD 상대경로 오류 주의
+포트 확인: netstat -ano | findstr ":8000"  /  ":8001"
 ```
+개발/운영 DB·포트 분리 배경 및 배포 체크리스트: `DEPLOY_CHECKLIST.md`. 기동·확인 실무 절차(SECRET_KEY `setx` 상세 포함): `SERVER_GUIDE.md`
 
 ### Frontend (React + Vite)
 ```
-실행:    npm run dev  (frontend/ 디렉터리에서 실행)
-포트:    5173 (Claude Code 프리뷰), 5174 (사용자 브라우저 — 5173 점유 시)
+개발 실행: npm run dev  (frontend/ 디렉터리에서 실행) → 포트 5173
+운영 실행: frontend/start-prod.bat  (tsc && vite build 후 vite preview) → 포트 4173
+           .env.production의 VITE_API_URL=http://localhost:8001이 빌드 시점에 번들에 박혀
+           운영 프런트는 자동으로 운영 백엔드(8001)만 바라봄 — dev(5173)는 기본값 8000 그대로
 CORS:    backend/main.py → allow_origins 에 5173, 5174, 4173 포함
 ```
 
@@ -68,6 +76,14 @@ conn = sqlite3.connect(r'E:\03. Job\00. Claude Code\au-test-system\backend\au_te
 ### CORS
 - 사용자 브라우저가 포트 5174를 쓸 수 있음 (5173이 Claude Code 점유 시)
 - `backend/main.py`의 `allow_origins`에 5173, 5174 **둘 다** 있어야 함
+
+### `.bat` 파일 인코딩/파싱 (2026-07-10 실제 사고)
+`start-prod.bat`을 코드 에디터/AI 도구로 저장하면 LF 줄바꿈 + BOM 없는 UTF-8이 되어 cmd.exe 파서가 깨질 수 있다. 실제로 이 상태에서 `preflight_check.py` 안전검증이 통째로 건너뛰어진 채 uvicorn이 개발용 DB를 물고 "운영 서버"로 떠버리는 사고가 재현됐다(새 터미널에서 실제 실행해서 발견됨 — 정적 리뷰로는 못 잡음). CRLF+UTF-8 BOM으로 재저장해 해결했고, 같은 점검을 `start.bat`에도 확대하니 별개 결함(중첩 `if` 블록 안 `echo` 텍스트에 괄호가 그대로 있어 cmd.exe 블록 파서가 깨짐, `... was unexpected at this time.`)도 나와 `^(`·`^)` 이스케이프로 고쳤다.
+```
+❌ if (...)  블록 안에서:  echo [AU] 패키지 설치 중 (최초 1회)...
+✅ if (...)  블록 안에서:  echo [AU] 패키지 설치 중 ^(최초 1회^)...
+```
+`.bat` 파일을 새로 만들거나 고칠 때는: ① `xxd file.bat | head -1`로 첫 바이트가 `ef bb bf`(BOM)인지 확인, ② 중첩 `if` 블록 안에 괄호 포함 텍스트가 없는지 확인, ③ 실제로 `cmd /c file.bat`을 새 터미널에서 돌려 의도한 출력이 나오는지 확인하기 전엔 "고쳤다"고 간주하지 않는다. 상세 재발방지 절차: `DEPLOY_CHECKLIST.md`.
 
 ---
 
@@ -172,3 +188,11 @@ P2 개발 기능 정의서(M01~M08) 전 항목 완료. M09·M10 별도 요청으
 - 여러 모듈에 걸치거나 범위가 불명확하면, 영향받는 Agent를 Tier 순서대로(0→1→2→3→4) 실행하고 같은 Tier는 병렬로 돌린다.
 - 대시보드/보고서/내보내기(Tier 4) 관련 변경이어도, 그 집계 대상이 되는 하위 모듈이 최근에 같이 바뀌었다면 하위 모듈 Agent를 먼저 실행해 원본 데이터부터 확인한다.
 - 각 Agent 정의(`.claude/agents/tester-*.md`)에 알려진 회귀 버그 패턴(예: 페이지네이션 `size` 상한, 8D 필드명, `execution_type` 재조회)이 명시돼 있으니 우선 확인 대상으로 삼는다.
+
+---
+
+## 8. 배포 게이트 Agent (dev → prod 승격 전 감사)
+
+**9개 Tester Agent(§7)와는 다른 계층이다.** Tester Agent는 "기능이 동작하는가"를 보고, `deploy-readiness`(`.claude/agents/deploy-readiness.md`)는 그 위에서 "dev에서 검증이 끝난 이 상태를 실제 운영 DB(`au_test_system_prod.db`)에 적용해도 안전한가"만 감사한다. 판단 기준은 `DEPLOY_CHECKLIST.md`이며, `backend/scripts/preflight_check.py`를 prod 조건으로 직접 실행해 ENVIRONMENT/DATABASE_URL/SECRET_KEY를 검증하고, 스키마 변경 시 백업 여부·CORS·프런트 운영 빌드(`tsc`) 통과 같은 수동 항목은 사용자에게 확인을 요청한다. (2026-07-10부터 dev=8000/5173, 운영=8001/4173으로 포트가 분리돼 동시 기동이 가능해졌다 — 더 이상 "dev부터 내려야 한다"는 전제가 아니다.)
+
+**규칙: "배포해도 되는지 확인해줘", "운영 적용 전 검증", "start-prod 돌려도 되는지" 요청 시 `deploy-readiness` Agent를 실행한다.** 이 Agent는 코드를 고치지 않고, `start-prod.bat`을 대신 실행하지도 않는다 — PASS/FAIL/BLOCK 감사 결과만 보고한다. 일반적으로 배포 전 순서는: ① 변경 범위에 해당하는 Tester Agent(§7)로 기능 검증 → ② `deploy-readiness`로 환경/설정 감사 → ③ 사용자가 직접 dev 서버를 내리고 `start-prod.bat` 실행.
