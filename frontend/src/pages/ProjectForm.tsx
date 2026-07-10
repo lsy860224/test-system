@@ -40,10 +40,12 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
   const [deleting, setDeleting] = useState(false)
   const [savedProjectId, setSavedProjectId] = useState<number | null>(projectId)
 
-  // 규격 항목 탭
+  // 규격 항목 탭 — 항목 선택은 id Set, 비고는 규격(standard_no) 단위로 별도 관리
   const [allStandards, setAllStandards] = useState<StandardItem[]>([])
   const [allCategories, setAllCategories] = useState<StandardCategory[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [standardNotes, setStandardNotes] = useState<Map<string, string>>(new Map())
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [standardSearch, setStandardSearch] = useState('')
   const [standardCatFilter, setStandardCatFilter] = useState<number | ''>('')
   const [standardLoading, setStandardLoading] = useState(false)
@@ -61,7 +63,8 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
     Promise.all([
       projectsApi.get(projectId),
       projectsApi.getStandardItems(projectId),
-    ]).then(([p, standardItems]) => {
+      projectsApi.getStandardNotes(projectId),
+    ]).then(([p, standardItems, notes]) => {
       const proj = p as Record<string, unknown>
       setForm({
         customer_id: proj.customer_id != null ? String(proj.customer_id) : '',
@@ -75,7 +78,10 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         assignee_id: proj.assignee_id != null ? String(proj.assignee_id) : '',
         notes: String(proj.notes ?? ''),
       })
-      setSelectedIds(new Set((standardItems as StandardItem[]).map((e) => e.id)))
+      const items = standardItems as StandardItem[]
+      setSelectedIds(new Set(items.map((e) => e.id)))
+      setExpandedGroups(new Set(items.map((e) => e.standard_no || '(규격 No. 미입력)')))
+      setStandardNotes(new Map(notes.map((n) => [n.standard_no, n.notes ?? ''])))
     }).finally(() => setLoading(false))
   }, [projectId])
 
@@ -96,6 +102,18 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
   const toggleStandard = (id: number) => setSelectedIds((prev) => {
     const next = new Set(prev)
     if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  const setGroupNote = (stdName: string, note: string) => setStandardNotes((prev) => {
+    const next = new Map(prev)
+    next.set(stdName, note)
+    return next
+  })
+
+  const toggleGroup = (stdName: string) => setExpandedGroups((prev) => {
+    const next = new Set(prev)
+    if (next.has(stdName)) next.delete(stdName); else next.add(stdName)
     return next
   })
 
@@ -126,10 +144,14 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         await projectsApi.update(pid, payload)
       }
 
-      // 규격 항목 연동 저장
+      // 규격 항목 연동 + 규격별 비고 저장
       if (pid !== null) {
         setStandardLoading(true)
         await projectsApi.setStandardItems(pid, [...selectedIds])
+        const notesPayload = [...standardNotes.entries()]
+          .filter(([, notes]) => notes.trim())
+          .map(([standard_no, notes]) => ({ standard_no, notes }))
+        await projectsApi.setStandardNotes(pid, notesPayload)
         setStandardLoading(false)
       }
 
@@ -262,46 +284,69 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
               <div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
                   {selectedIds.size > 0 && <span style={{ color: 'var(--au-blue)', fontWeight: 600 }}>{selectedIds.size}건 선택됨 · </span>}
-                  전체 {allStandards.length}건 중 {filteredStandards.length}건 표시
+                  전체 {allStandards.length}건 중 {filteredStandards.length}건 표시 — 규격명을 클릭하면 항목이 펼쳐집니다
                 </div>
-                {Object.entries(grouped).map(([stdName, items]) => (
-                  <div key={stdName} style={{ marginBottom: 14 }}>
-                    <div style={{
-                      fontSize: 12, fontWeight: 700, color: 'var(--au-indigo)',
-                      padding: '6px 10px', background: '#F0F2FF', borderRadius: 6, marginBottom: 4,
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    }}>
-                      <span>📋 {stdName}</span>
-                      <button onClick={() => {
-                        const allSelected = items.every((e) => selectedIds.has(e.id))
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev)
-                          if (allSelected) items.forEach((e) => next.delete(e.id))
-                          else items.forEach((e) => next.add(e.id))
-                          return next
-                        })
-                      }} style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--au-blue)' }}>
-                        {items.every((e) => selectedIds.has(e.id)) ? '전체 해제' : '전체 선택'}
-                      </button>
-                    </div>
-                    {items.map((item) => (
-                      <div key={item.id} onClick={() => toggleStandard(item.id)} style={{
-                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                        borderRadius: 6, cursor: 'pointer', marginBottom: 2,
-                        background: selectedIds.has(item.id) ? '#EBF4FF' : 'transparent',
-                        border: `1px solid ${selectedIds.has(item.id) ? 'var(--au-blue)' : 'var(--border)'}`,
+                {Object.entries(grouped).map(([stdName, items]) => {
+                  const isExpanded = expandedGroups.has(stdName)
+                  const selectedCount = items.filter((e) => selectedIds.has(e.id)).length
+                  return (
+                    <div key={stdName} style={{ marginBottom: 8 }}>
+                      <div onClick={() => toggleGroup(stdName)} style={{
+                        fontSize: 12, fontWeight: 700, color: 'var(--au-indigo)',
+                        padding: '8px 10px', background: '#F0F2FF', borderRadius: '6px 6px 0 0',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                       }}>
-                        <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleStandard(item.id)}
-                          onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} />
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 60, fontFamily: 'monospace' }}>{item.standard_code}</span>
-                        <span style={{ fontSize: 13, flex: 1 }}>{item.name}</span>
-                        {item.category_name && (
-                          <Badge label={item.category_name} color={item.category_color} />
-                        )}
+                        <span>{isExpanded ? '▾' : '▸'} 📋 {stdName} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({items.length}건{selectedCount > 0 ? `, ${selectedCount}건 선택됨` : ''})</span></span>
+                        <button onClick={(e) => {
+                          e.stopPropagation()
+                          const allSelected = items.every((it) => selectedIds.has(it.id))
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev)
+                            if (allSelected) items.forEach((it) => next.delete(it.id))
+                            else items.forEach((it) => next.add(it.id))
+                            return next
+                          })
+                        }} style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--au-blue)' }}>
+                          {items.every((it) => selectedIds.has(it.id)) ? '전체 해제' : '전체 선택'}
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                ))}
+                      {selectedCount > 0 && (
+                        <div style={{ padding: '6px 10px', background: '#F0F2FF', borderTop: '1px solid #E1E5FA' }}>
+                          <input
+                            value={standardNotes.get(stdName) ?? ''}
+                            onChange={(e) => setGroupNote(stdName, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="이 규격 비고 — 일부 항목만 적용되는 경우 조건을 적어두세요 (예: A타입 커넥터 적용 부품만 해당)"
+                            style={{ ...inp, fontSize: 12, padding: '6px 8px', background: 'var(--bg)' }}
+                          />
+                        </div>
+                      )}
+                      {isExpanded && (
+                        <div style={{ marginTop: 4 }}>
+                          {items.map((item) => {
+                            const selected = selectedIds.has(item.id)
+                            return (
+                              <div key={item.id} onClick={() => toggleStandard(item.id)} style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                                borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                                background: selected ? '#EBF4FF' : 'transparent',
+                                border: `1px solid ${selected ? 'var(--au-blue)' : 'var(--border)'}`,
+                              }}>
+                                <input type="checkbox" checked={selected} onChange={() => toggleStandard(item.id)}
+                                  onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} />
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 60, fontFamily: 'monospace' }}>{item.standard_code}</span>
+                                <span style={{ fontSize: 13, flex: 1 }}>{item.name}</span>
+                                {item.category_name && (
+                                  <Badge label={item.category_name} color={item.category_color} />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

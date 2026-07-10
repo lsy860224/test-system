@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select, or_
-from models.project import Project, ProjectMilestone, project_standard_items
+from models.project import Project, ProjectMilestone, project_standard_items, project_standard_notes
 from models.standard import StandardItem
 from models.item import Item
 from schemas.project import ProjectCreate, ProjectUpdate, MilestoneCreate
@@ -84,3 +84,24 @@ def set_project_standard_items(db: Session, project_id: int, standard_item_ids: 
         ))
     db.commit()
     return get_project_standard_items(db, project_id)
+
+# ── 프로젝트-규격(standard_no) 단위 비고 ───────────────────────
+def get_project_standard_notes(db: Session, project_id: int) -> list:
+    get_project(db, project_id)
+    rows = db.execute(
+        select(project_standard_notes.c.standard_no, project_standard_notes.c.notes)
+        .where(project_standard_notes.c.project_id == project_id)
+    ).all()
+    return [{"standard_no": r.standard_no, "notes": r.notes} for r in rows]
+
+def set_project_standard_notes(db: Session, project_id: int, notes_list: list[dict]) -> list:
+    get_project(db, project_id)
+    db.execute(delete(project_standard_notes).where(project_standard_notes.c.project_id == project_id))
+    entries = [n for n in notes_list if (n.get("notes") or "").strip()]
+    if entries:
+        db.execute(insert(project_standard_notes).values([
+            {"project_id": project_id, "standard_no": n["standard_no"], "notes": n["notes"]}
+            for n in entries
+        ]))
+    db.commit()
+    return get_project_standard_notes(db, project_id)

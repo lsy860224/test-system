@@ -77,6 +77,8 @@ def _migrate_db():
         "ALTER TABLE sops ADD COLUMN doc_type VARCHAR(20) DEFAULT '시험절차서'",
         "ALTER TABLE sops ADD COLUMN approver_id INTEGER REFERENCES users(id)",
         "ALTER TABLE sops DROP COLUMN approved_by",
+        # project_standard_items: 항목별 비고는 가독성이 떨어져 규격 단위 비고(project_standard_notes)로 대체 (2026-07-10)
+        "ALTER TABLE project_standard_items DROP COLUMN notes",
     ]
     with engine.connect() as conn:
         for sql in migrations:

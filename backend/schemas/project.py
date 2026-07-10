@@ -64,3 +64,20 @@ class ProjectListOut(BaseModel):
 class PaginatedProjects(BaseModel):
     total: int
     items: list[ProjectListOut]
+
+# ── 프로젝트-규격 항목 연동 ────────────────────────────────────
+class StandardItemIds(BaseModel):
+    standard_item_ids: list[int]
+
+# ── 프로젝트-규격(standard_no) 단위 비고 ───────────────────────
+class ProjectStandardNoteOut(BaseModel):
+    standard_no: str
+    notes: Optional[str] = None
+    model_config = {"from_attributes": True}
+
+class ProjectStandardNoteIn(BaseModel):
+    standard_no: str
+    notes: Optional[str] = None
+
+class ProjectStandardNotesUpdate(BaseModel):
+    notes: list[ProjectStandardNoteIn]

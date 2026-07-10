@@ -4,6 +4,11 @@ import type { StandardItem } from './standards'
 // 저장값은 계속 '활성'이지만(기존 필터·조회 로직 호환), 화면 표기는 '진행 중'으로 통일한다
 export const projectStatusLabel = (status: string) => (status === '활성' ? '진행 중' : status)
 
+export interface ProjectStandardNote {
+  standard_no: string
+  notes?: string | null   // 이 프로젝트에서 이 규격에 적용되는 조건/비고 (규격 단위, 항목 단위 아님)
+}
+
 export interface ProjectItem {
   id: number
   name: string
@@ -36,6 +41,12 @@ export const projectsApi = {
 
   setStandardItems: (id: number, standardItemIds: number[]) =>
     client.put<StandardItem[]>(`/projects/${id}/standard-items`, { standard_item_ids: standardItemIds }).then((r) => r.data),
+
+  getStandardNotes: (id: number) =>
+    client.get<ProjectStandardNote[]>(`/projects/${id}/standard-notes`).then((r) => r.data),
+
+  setStandardNotes: (id: number, notes: ProjectStandardNote[]) =>
+    client.put<ProjectStandardNote[]>(`/projects/${id}/standard-notes`, { notes }).then((r) => r.data),
 
   scheduleDetail: (id: number) =>
     client.get<ScheduleDetailResponse>(`/projects/${id}/schedule-detail`).then((r) => r.data),

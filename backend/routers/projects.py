@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 from dependencies import get_db, require_staff
-from schemas.project import ProjectCreate, ProjectUpdate, ProjectOut, PaginatedProjects, MilestoneCreate, MilestoneOut
+from schemas.project import (
+    ProjectCreate, ProjectUpdate, ProjectOut, PaginatedProjects, MilestoneCreate, MilestoneOut,
+    StandardItemIds, ProjectStandardNoteOut, ProjectStandardNotesUpdate,
+)
 from schemas.standard import StandardItemOut
 from services import project_service, schedule_service
-
-class StandardItemIds(BaseModel):
-    standard_item_ids: list[int]
 
 router = APIRouter(prefix="/projects", tags=["프로젝트 관리"])
 
@@ -52,6 +51,14 @@ def get_project_standard_items(project_id: int, db: Session = Depends(get_db), _
 @router.put("/{project_id}/standard-items", response_model=list[StandardItemOut])
 def set_project_standard_items(project_id: int, body: StandardItemIds, db: Session = Depends(get_db), _=Depends(require_staff)):
     return project_service.set_project_standard_items(db, project_id, body.standard_item_ids)
+
+@router.get("/{project_id}/standard-notes", response_model=list[ProjectStandardNoteOut])
+def get_project_standard_notes(project_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
+    return project_service.get_project_standard_notes(db, project_id)
+
+@router.put("/{project_id}/standard-notes", response_model=list[ProjectStandardNoteOut])
+def set_project_standard_notes(project_id: int, body: ProjectStandardNotesUpdate, db: Session = Depends(get_db), _=Depends(require_staff)):
+    return project_service.set_project_standard_notes(db, project_id, [n.model_dump() for n in body.notes])
 
 @router.get("/{project_id}/schedule-detail")
 def get_project_schedule_detail(project_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):

@@ -13,6 +13,15 @@ project_standard_items = Table(
     Column("added_by",    Integer, ForeignKey("users.id"), nullable=True),
 )
 
+# 프로젝트 ↔ 규격(standard_no) 단위 비고 — 항목별이 아니라 규격 전체에 대한 적용 조건/비고 1건
+project_standard_notes = Table(
+    "project_standard_notes", Base.metadata,
+    Column("project_id",  Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    Column("standard_no", String(50), primary_key=True),
+    Column("notes",       Text, nullable=True),
+    Column("updated_at",  DateTime, server_default=func.now(), onupdate=func.now()),
+)
+
 
 class Project(Base):
     __tablename__ = "projects"
