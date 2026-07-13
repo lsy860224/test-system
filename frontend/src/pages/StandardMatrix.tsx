@@ -293,7 +293,7 @@ export default function StandardMatrix() {
   ]
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div style={{ flex: 1 }} />
         {!selectedGroup && (

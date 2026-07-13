@@ -45,7 +45,7 @@ export default function ItemList() {
   ]
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button size="sm" onClick={() => navigate('/items/new')}>+ 아이템 등록</Button>
       </div>

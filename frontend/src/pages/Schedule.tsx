@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { scheduleApi, type ProjectScheduleSummary } from '@/api/schedules'
 import Table, { type Column } from '@/components/ui/Table'
-import Badge from '@/components/ui/Badge'
+import Badge, { STATUS_COLORS, SHORT_LABELS } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { toggleSort, sortByKey, type SortState } from '@/utils/sort'
 import { useUIStore } from '@/stores/uiStore'
@@ -53,26 +53,22 @@ export default function Schedule() {
     },
     { key: 'item_name', header: '아이템', width: 140, sortable: true, render: (r) => r.item_name ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
     { key: 'customer_name', header: '고객사', width: 140, sortable: true, render: (r) => r.customer_name ?? <span style={{ color: 'var(--text-muted)' }}>-</span> },
-    { key: 'phase', header: 'Phase', width: 80, sortable: true, render: (r) => <Badge label={r.phase} /> },
+    { key: 'phase', header: 'Phase', width: 100, sortable: true, render: (r) => <Badge label={r.phase} /> },
     { key: 'total_items', header: '규격 항목 수', width: 100, sortable: true, render: (r) => `${r.total_items}건` },
-    {
-      key: 'status_counts', header: '진행 현황',
-      render: (r) => (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
-          {STATUS_ORDER.filter((s) => (r.status_counts[s] ?? 0) > 0).map((s) => (
-            <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <Badge label={s} /> <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{r.status_counts[s]}</span>
-            </span>
-          ))}
-          {r.total_items === 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>등록된 규격 항목 없음</span>}
-        </div>
-      ),
-    },
+    ...STATUS_ORDER.map((s): Column<ProjectScheduleSummary> => ({
+      key: `status_${s}`, header: SHORT_LABELS[s] ?? s, width: 60,
+      render: (r) => {
+        const count = r.status_counts[s] ?? 0
+        return count > 0
+          ? <span style={{ fontWeight: 700, color: STATUS_COLORS[s] ?? 'var(--text-primary)' }}>{count}</span>
+          : <span style={{ color: 'var(--text-muted)' }}>-</span>
+      },
+    })),
   ]
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexShrink: 0 }}>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <button onClick={() => setView('list')} style={viewToggleStyle(view === 'list')}>목록</button>
@@ -85,7 +81,7 @@ export default function Schedule() {
         <GanttChart />
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', flexShrink: 0 }}>
             <input
               placeholder="프로젝트명 / 프로젝트 코드 / 아이템명 검색"
               value={search} onChange={(e) => setSearch(e.target.value)}
@@ -101,7 +97,7 @@ export default function Schedule() {
             onRowClick={(r) => setSelectedProjectId(r.project_id)} />
 
           {total > PAGE_SIZE && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, flexShrink: 0 }}>
               <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>이전</Button>
               <span style={{ fontSize: 13, lineHeight: '28px', color: 'var(--text-secondary)' }}>{page} / {Math.ceil(total / PAGE_SIZE)}</span>
               <Button variant="secondary" size="sm" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>다음</Button>

@@ -59,7 +59,7 @@ export default function NCR() {
   ]
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button size="sm" onClick={() => setFormNcrId(null)}>+ NCR 등록</Button>
       </div>

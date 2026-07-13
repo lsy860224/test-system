@@ -14,6 +14,8 @@
 
   --sidebar-w: 220px;
   --topbar-h: 56px;
+  --main-padding: 24px;
+  --page-fill-h: calc(100vh - var(--topbar-h) - (var(--main-padding) * 2));
 
   --status-green: #38A169;
   --status-yellow: #D69E2E;

@@ -44,7 +44,7 @@ export default function VendorRegistry() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div style={{ padding: 28, maxWidth: 1100 }}>
+    <div style={{ padding: 28, maxWidth: 1100, display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
           시험소 마스터 정보(명칭·연락처·KOLAS 인정)를 등록·관리합니다. 단가표·발주이력·단가비교는 '외주 시험소' 메뉴에서 다룹니다.
@@ -79,7 +79,7 @@ export default function VendorRegistry() {
           <Button style={{ marginTop: 16 }} onClick={() => setFormId(null)}>첫 시험소 등록</Button>
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 400px)', border: '1px solid var(--border)', borderRadius: 10 }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0, border: '1px solid var(--border)', borderRadius: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>

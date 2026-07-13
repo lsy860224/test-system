@@ -5,7 +5,7 @@ interface Props {
   color?: string
 }
 
-const STATUS_COLORS: Record<string, string> = {
+export const STATUS_COLORS: Record<string, string> = {
   // 규격 / 일정
   '대기':    '#718096',
   '진행중':  '#3182CE',
@@ -44,6 +44,13 @@ const STATUS_COLORS: Record<string, string> = {
   '양산':   '#2B2F82',
 }
 
+// 3글자 상태어는 좁은 컬럼/뱃지에서 잘리기 쉬워 2글자로 축약해 표시한다 (의미가 바뀌는 축약은 하지 않음)
+export const SHORT_LABELS: Record<string, string> = {
+  '진행중': '진행',
+  '준비중': '준비',
+  '검토중': '검토',
+}
+
 export default function Badge({ label, color }: Props) {
   const bg = color ?? STATUS_COLORS[label] ?? '#718096'
   return (
@@ -57,7 +64,7 @@ export default function Badge({ label, color }: Props) {
       background: bg,
       whiteSpace: 'nowrap',
     }}>
-      {label}
+      {SHORT_LABELS[label] ?? label}
     </span>
   )
 }

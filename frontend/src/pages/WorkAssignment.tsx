@@ -106,7 +106,7 @@ export default function WorkAssignment() {
   ]
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: expanded === undefined ? 'var(--page-fill-h)' : 'auto' }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>담당자별 업무 분배 현황</h2>
       <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
         규격 항목 · 시험 일정 · NCR · 프로젝트에 등록된 담당자 기준 업무량 집계입니다. 행을 클릭하면 상세 목록을 볼 수 있습니다.

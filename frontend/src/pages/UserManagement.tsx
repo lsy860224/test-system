@@ -57,7 +57,7 @@ export default function UserManagement() {
   ]
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginBottom: 20 }}>
         {isAdmin ? (
           <Button size="sm" onClick={() => setFormUser(null)}>+ 사용자 등록</Button>

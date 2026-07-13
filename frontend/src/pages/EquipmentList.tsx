@@ -68,7 +68,7 @@ export default function EquipmentList() {
   const visibleYears = filterYear ? [Number(filterYear)] : YEARS
 
   return (
-    <div style={{ padding: 28, maxWidth: 1200 }}>
+    <div style={{ padding: 28, maxWidth: 1200, display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       {/* page header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>시험 장비 대장 및 교정 관리</p>
@@ -122,7 +122,7 @@ export default function EquipmentList() {
               <Button style={{ marginTop: 16 }} onClick={() => setFormId(null)}>첫 장비 등록</Button>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 380px)' }}>
+            <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)' }}>

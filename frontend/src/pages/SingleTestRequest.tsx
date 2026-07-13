@@ -70,7 +70,7 @@ export default function SingleTestRequest() {
   ]
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button size="sm" onClick={() => setFormId(null)}>+ 단건 시험 의뢰 등록</Button>
       </div>
