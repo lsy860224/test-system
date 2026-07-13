@@ -123,7 +123,17 @@ export default function Sidebar() {
               {!collapsed && expanded.includes(item.key) && (
                 <div style={{ background: 'rgba(0,0,0,0.15)' }}>
                   {item.children.map((child) => (
-                    <NavLink key={child.key} to={child.path} style={subNavStyle(isActive(child.path))}>
+                    <NavLink
+                      key={child.key}
+                      to={child.path}
+                      style={subNavStyle(isActive(child.path))}
+                      onClick={(e) => {
+                        if (isActive(child.path)) {
+                          e.preventDefault()
+                          window.location.reload()
+                        }
+                      }}
+                    >
                       <span style={{ marginLeft: 8, marginRight: 6, opacity: 0.4 }}>│</span>
                       {child.label}
                     </NavLink>
@@ -132,7 +142,17 @@ export default function Sidebar() {
               )}
             </div>
           ) : (
-            <NavLink key={item.key} to={item.path!} style={({ isActive }) => navStyle(isActive)}>
+            <NavLink
+              key={item.key}
+              to={item.path!}
+              style={({ isActive }) => navStyle(isActive)}
+              onClick={(e) => {
+                if (isActive(item.path!)) {
+                  e.preventDefault()
+                  window.location.reload()
+                }
+              }}
+            >
               <span>{item.icon}</span>
               {!collapsed && (
                 <>
