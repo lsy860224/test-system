@@ -8,6 +8,8 @@ import { useFormState } from '@/hooks/useFormState'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   equipmentId: number | null
@@ -88,7 +90,8 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
 
   // ── 기본정보 저장 ──────────────────────────────────────
   const handleSave = async () => {
-    if (!form.name.trim()) { alert('장비명을 입력하세요'); return }
+    const error = validateRequired([[!form.name.trim(), '장비명을 입력하세요']])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload = {
@@ -103,7 +106,7 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
       else { await equipmentApi.create(payload) }
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)
@@ -188,7 +191,8 @@ export default function EquipmentForm({ equipmentId, onClose, onSaved }: Props) 
   // ── 투자계획 저장 ──────────────────────────────────────
   const handleSaveInv = async () => {
     if (!equipmentId) return
-    if (!invForm.item_name.trim()) { alert('항목명을 입력하세요'); return }
+    const invError = validateRequired([[!invForm.item_name.trim(), '항목명을 입력하세요']])
+    if (invError) { alert(invError); return }
     setSavingInv(true)
     try {
       const payload = {

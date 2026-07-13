@@ -84,6 +84,8 @@ def _migrate_db():
         # notifications: 완료예정일 동기화가 짧은 시간 내 동시 요청될 때(예: 폴링 겹침) 같은 사용자에게
         # 같은 프로젝트·같은 D-day 알림이 중복 생성되는 경합을 DB 레벨에서 차단 (2026-07-13, 실제 중복 발생 확인 후 추가)
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_deadline_dedup ON notifications(user_id, related_type, related_id) WHERE related_type LIKE 'project_deadline_%'",
+        # users: 비밀번호 변경 시 이전에 발급된 JWT를 무효화하기 위한 버전 카운터 (2026-07-14)
+        "ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0",
     ]
     with engine.connect() as conn:
         for sql in migrations:

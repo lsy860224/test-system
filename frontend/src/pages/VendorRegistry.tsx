@@ -2,34 +2,26 @@ import { useEffect, useState } from 'react'
 import { vendorApi, type VendorLab, LAB_TYPES } from '@/api/vendor'
 import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
-import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
+import { toggleSort } from '@/utils/sort'
 import { useUIStore } from '@/stores/uiStore'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
+import Pagination from '@/components/ui/Pagination'
 import VendorForm from '@/pages/VendorForm'
 
-const FETCH_SIZE = 1000
-
 export default function VendorRegistry() {
-  const [items, setItems] = useState<VendorLab[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { items, total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<VendorLab>({ key: 'name', dir: 'asc' })
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterKolas, setFilterKolas] = useState(false)
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' })
   const [formId, setFormId] = useState<number | null | undefined>(undefined)
-  const PAGE_SIZE = 20
 
-  const load = () => {
-    setLoading(true)
-    vendorApi.list({
-      size: FETCH_SIZE,
-      search: search || undefined,
-      lab_type: filterType || undefined,
-      kolas_only: filterKolas || undefined,
-    }).then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => vendorApi.list({
+    size: FETCH_SIZE,
+    search: search || undefined,
+    lab_type: filterType || undefined,
+    kolas_only: filterKolas || undefined,
+  }))
 
   useEffect(() => { setPage(1); load() }, [filterType, filterKolas])
 
@@ -38,10 +30,6 @@ export default function VendorRegistry() {
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
   const handleSaved = () => { setFormId(undefined); load() }
-
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
     <div style={{ padding: 28, maxWidth: 1100, display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
@@ -124,13 +112,7 @@ export default function VendorRegistry() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
-          <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>이전</Button>
-          <span style={{ lineHeight: '32px', fontSize: 13, color: 'var(--text-muted)' }}>{page} / {totalPages}</span>
-          <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>다음</Button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {formId !== undefined && (
         <VendorForm vendorId={formId} allowedTabs={['기본정보']} onClose={() => setFormId(undefined)} onSaved={handleSaved} />

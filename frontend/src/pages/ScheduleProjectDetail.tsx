@@ -5,6 +5,7 @@ import Badge from '@/components/ui/Badge'
 import ScheduleForm from './ScheduleForm'
 import ScheduleResultForm from './ScheduleResultForm'
 import NCRForm, { type NCRPrefill } from './NCRForm'
+import { getErrorMessage } from '@/utils/errorMessage'
 
 interface Props {
   projectId: number
@@ -49,7 +50,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
       load()
       onChanged()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '시험 시작 처리 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '시험 시작 처리 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setStartingId(null)
@@ -77,7 +78,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
       load()
       onChanged()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '재시험 등록 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '재시험 등록 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setRetestingId(null)

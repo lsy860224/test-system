@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import Optional
-from dependencies import get_db, get_current_user, require_staff
+from dependencies import get_db, require_staff
 from schemas.standard import (
     StandardItemCreate, StandardItemUpdate, StandardItemOut,
     PaginatedStandardItems, StandardHistoryOut, StandardCategoryOut,
@@ -13,11 +13,11 @@ from services import standard_service
 router = APIRouter(prefix="/standards", tags=["규격 매트릭스"])
 
 @router.get("/categories", response_model=list[StandardCategoryOut])
-def list_categories(db: Session = Depends(get_db), _=Depends(get_current_user)):
+def list_categories(db: Session = Depends(get_db), _=Depends(require_staff)):
     return standard_service.list_categories(db)
 
 @router.get("/template")
-def download_template(_=Depends(get_current_user)):
+def download_template(_=Depends(require_staff)):
     content = standard_service.generate_template()
     return Response(
         content=content,
@@ -42,7 +42,7 @@ def list_standard_items(
     source_type: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_staff),
 ):
     return standard_service.list_items(db, page, size, category_id, source_type, search)
 
@@ -55,7 +55,7 @@ def update_standard_group_info(body: StandardGroupUpdate, db: Session = Depends(
     return standard_service.update_group_info(db, body, current_user.id)
 
 @router.get("/{item_id}", response_model=StandardItemOut)
-def get_standard_item(item_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_standard_item(item_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
     return standard_service.get_item(db, item_id)
 
 @router.put("/{item_id}", response_model=StandardItemOut)
@@ -67,5 +67,5 @@ def delete_standard_item(item_id: int, db: Session = Depends(get_db), _=Depends(
     standard_service.soft_delete(db, item_id)
 
 @router.get("/{item_id}/history", response_model=list[StandardHistoryOut])
-def get_history(item_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_history(item_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
     return standard_service.get_history(db, item_id)

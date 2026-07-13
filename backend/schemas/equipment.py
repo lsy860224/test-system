@@ -108,3 +108,8 @@ class EquipmentDetail(EquipmentListItem):
 class PaginatedEquipment(BaseModel):
     total: int
     items: List[EquipmentListItem]
+
+
+# ── 장비-규격 Capability 매핑 ──────────────────────────────
+class StandardItemIds(BaseModel):
+    standard_item_ids: List[int]

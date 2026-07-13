@@ -1,34 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { customersApi, type CustomerListItem } from '@/api/customers'
-import Table, { type Column, type SortState } from '@/components/ui/Table'
+import Table, { type Column } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { toggleSort, sortByKey } from '@/utils/sort'
+import { toggleSort } from '@/utils/sort'
 import { useUIStore } from '@/stores/uiStore'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
+import Pagination from '@/components/ui/Pagination'
 import CustomerForm from './CustomerForm'
-
-const FETCH_SIZE = 1000
 
 export default function CustomerList() {
   const navigate = useNavigate()
-  const [items, setItems] = useState<CustomerListItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<CustomerListItem>({ key: 'name', dir: 'asc' })
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' })
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const PAGE_SIZE = 20
 
-  const load = () => {
-    setLoading(true)
-    customersApi.list({ size: FETCH_SIZE, search: search || undefined, company_type: filterType || undefined })
-      .then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => customersApi.list({ size: FETCH_SIZE, search: search || undefined, company_type: filterType || undefined }))
 
   useEffect(() => { setPage(1); load() }, [filterType])
 
@@ -40,9 +31,6 @@ export default function CustomerList() {
   const openNew = () => navigate('/customers/new')
   const openEdit = (row: CustomerListItem) => { setEditId(row.id); setShowForm(true) }
   const handleSaved = () => { setShowForm(false); load() }
-
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const columns: Column<CustomerListItem>[] = [
     {
@@ -103,13 +91,7 @@ export default function CustomerList() {
         onSortChange={(key) => { setSort((prev) => toggleSort(prev, key)); setPage(1) }}
       />
 
-      {total > PAGE_SIZE && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-          <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>이전</Button>
-          <span style={{ fontSize: 13, lineHeight: '28px', color: 'var(--text-secondary)' }}>{page} / {Math.ceil(total / PAGE_SIZE)}</span>
-          <Button variant="secondary" size="sm" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>다음</Button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {showForm && (
         <CustomerForm

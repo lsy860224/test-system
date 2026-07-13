@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from dependencies import get_db, get_current_user, require_staff
+from dependencies import get_db, require_staff
 from schemas.vendor import (
     VendorCreate, VendorUpdate, VendorListItem, VendorDetail, PaginatedVendors,
     TestScopeCreate, TestScopeOut,
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/vendors", tags=["외주 시험소"])
 def compare_prices(
     test_name: str = Query(..., min_length=1),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_staff),
 ):
     return vendor_service.compare_prices(db, test_name)
 
@@ -31,13 +31,13 @@ def list_vendors(
     lab_type: Optional[str] = None,
     kolas_only: bool = False,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(require_staff),
 ):
     return vendor_service.list_vendors(db, page, size, search, lab_type, kolas_only)
 
 # ── 단건 시험 요청 연계 발주 조회 (vendor_id 무관 — literal path, /{vendor_id} 보다 먼저) ──
 @router.get("/orders/by-request/{request_id}", response_model=list[OrderOut])
-def list_orders_by_request(request_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def list_orders_by_request(request_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
     return vendor_service.list_orders_by_single_test_request(db, request_id)
 
 @router.post("/", response_model=VendorDetail, status_code=201)
@@ -45,7 +45,7 @@ def create_vendor(body: VendorCreate, db: Session = Depends(get_db), _=Depends(r
     return vendor_service.create_vendor(db, body)
 
 @router.get("/{vendor_id}", response_model=VendorDetail)
-def get_vendor(vendor_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_vendor(vendor_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
     return vendor_service.get_vendor(db, vendor_id)
 
 @router.put("/{vendor_id}", response_model=VendorDetail)

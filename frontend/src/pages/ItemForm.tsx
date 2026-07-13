@@ -4,6 +4,8 @@ import { useFormState } from '@/hooks/useFormState'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   itemId: number | null
@@ -53,7 +55,8 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
   }
 
   const handleSave = async () => {
-    if (!form.name.trim()) { alert('아이템명을 입력하세요'); return }
+    const error = validateRequired([[!form.name.trim(), '아이템명을 입력하세요']])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload = {
@@ -69,7 +72,7 @@ export default function ItemForm({ itemId, onClose, onSaved, standalone }: Props
       }
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

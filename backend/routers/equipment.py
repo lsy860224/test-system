@@ -8,6 +8,7 @@ from schemas.equipment import (
     EquipmentCreate, EquipmentUpdate, EquipmentListItem, EquipmentDetail, PaginatedEquipment,
     CalibrationCreate, CalibrationOut,
     InvestmentCreate, InvestmentOut,
+    StandardItemIds,
 )
 from services import equipment_service
 
@@ -102,5 +103,5 @@ def get_standard_items(eq_id: int, db: Session = Depends(get_db), _=Depends(requ
     return equipment_service.get_standard_item_ids(db, eq_id)
 
 @router.put("/{eq_id}/standard-items")
-def set_standard_items(eq_id: int, body: dict, db: Session = Depends(get_db), _=Depends(require_staff)):
-    return equipment_service.set_standard_items(db, eq_id, body.get("standard_item_ids", []))
+def set_standard_items(eq_id: int, body: StandardItemIds, db: Session = Depends(get_db), _=Depends(require_staff)):
+    return equipment_service.set_standard_items(db, eq_id, body.standard_item_ids)

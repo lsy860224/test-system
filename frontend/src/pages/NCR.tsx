@@ -1,45 +1,35 @@
 import { useEffect, useState } from 'react'
 import { ncrApi, type NCRItem } from '@/api/ncr'
-import Table, { type Column, type SortState } from '@/components/ui/Table'
+import Table, { type Column } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { toggleSort, sortByKey } from '@/utils/sort'
+import { toggleSort } from '@/utils/sort'
 import { useUIStore } from '@/stores/uiStore'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
+import Pagination from '@/components/ui/Pagination'
 import NCRForm from './NCRForm'
 
-const FETCH_SIZE = 1000
-
 export default function NCR() {
-  const [items, setItems] = useState<NCRItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<NCRItem>({ key: 'detected_date', dir: 'desc' })
   const [filterStatus, setFilterStatus] = useState('')
   const [filterSeverity, setFilterSeverity] = useState('')
   const [filterOverdue, setFilterOverdue] = useState(false)
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'detected_date', dir: 'desc' })
-  const PAGE_SIZE = 20
   const [formNcrId, setFormNcrId] = useState<number | null | undefined>(undefined)
 
-  const load = () => {
-    setLoading(true)
-    ncrApi.list({
-      size: FETCH_SIZE,
-      status: filterStatus || undefined,
-      severity: filterSeverity || undefined,
-      search: search || undefined,
-      overdue: filterOverdue || undefined,
-    }).then((r) => { setItems(r.items); setTotal(r.total) }).finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => ncrApi.list({
+    size: FETCH_SIZE,
+    status: filterStatus || undefined,
+    severity: filterSeverity || undefined,
+    search: search || undefined,
+    overdue: filterOverdue || undefined,
+  }))
 
   useEffect(() => { setPage(1); load() }, [filterStatus, filterSeverity, filterOverdue])
 
   const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
   useEffect(() => { setPageCountLabel(`총 ${total}건`) }, [total])
-
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const columns: Column<NCRItem>[] = [
     { key: 'ncr_number',    header: 'NCR 번호',   width: 130, sortable: true },
@@ -95,13 +85,7 @@ export default function NCR() {
         />
       )}
 
-      {total > PAGE_SIZE && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-          <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>이전</Button>
-          <span style={{ fontSize: 13, lineHeight: '28px', color: 'var(--text-secondary)' }}>{page} / {Math.ceil(total / PAGE_SIZE)}</span>
-          <Button variant="secondary" size="sm" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>다음</Button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   )
 }

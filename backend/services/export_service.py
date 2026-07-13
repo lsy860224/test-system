@@ -18,6 +18,14 @@ HDR_FILL = PatternFill("solid", fgColor="2B2F82")
 HDR_FONT = Font(color="FFFFFF", bold=True, size=11)
 
 
+def _sanitize_cell(val):
+    """자유 텍스트 필드(NCR 노트, 업체 주소 등)가 그대로 xlsx 셀에 들어가므로,
+    수신자가 레거시 Excel에서 열 때 수식으로 해석될 수 있는 값(=+-@로 시작)을 텍스트로 무력화한다."""
+    if isinstance(val, str) and val[:1] in ("=", "+", "-", "@"):
+        return "'" + val
+    return val
+
+
 def _write_sheet(wb: Workbook, title: str, headers: list[str], rows: list[list], col_widths: list[int]):
     ws = wb.create_sheet(title)
     for col, (hdr, w) in enumerate(zip(headers, col_widths), 1):
@@ -30,7 +38,7 @@ def _write_sheet(wb: Workbook, title: str, headers: list[str], rows: list[list],
     ws.freeze_panes = "A2"
     for r, row_data in enumerate(rows, 2):
         for c, val in enumerate(row_data, 1):
-            ws.cell(row=r, column=c, value=val)
+            ws.cell(row=r, column=c, value=_sanitize_cell(val))
     return ws
 
 

@@ -13,6 +13,8 @@ import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
 import { useFormState } from '@/hooks/useFormState'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   sopId: number | null
@@ -167,8 +169,11 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
 
   // ── 기본정보 저장 ──────────────────────────────────────
   const handleSave = async () => {
-    if (!form.sop_number.trim()) { alert('문서 번호를 입력하세요'); return }
-    if (!form.title.trim()) { alert('문서명을 입력하세요'); return }
+    const error = validateRequired([
+      [!form.sop_number.trim(), '문서 번호를 입력하세요'],
+      [!form.title.trim(), '문서명을 입력하세요'],
+    ])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload = {
@@ -210,7 +215,7 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
 
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally { setSaving(false); setStandardLoading(false); setEquipmentLoading(false) }
   }
@@ -227,7 +232,8 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
   // ── 개정 이력 저장 ─────────────────────────────────────
   const handleSaveRev = async () => {
     if (!sopId) return
-    if (!revForm.version.trim()) { alert('버전을 입력하세요'); return }
+    const revError = validateRequired([[!revForm.version.trim(), '버전을 입력하세요']])
+    if (revError) { alert(revError); return }
     setSavingRev(true)
     try {
       const created = await sopApi.addRevision(sopId, {

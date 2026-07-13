@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   projectId: number | null
@@ -119,7 +121,8 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
 
   const handleSave = async () => {
     if (!form.customer_id) { alert('고객사를 선택하세요'); return }
-    if (!form.name.trim()) { alert('프로젝트명을 입력하세요'); return }
+    const error = validateRequired([[!form.name.trim(), '프로젝트명을 입력하세요']])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload = {
@@ -157,7 +160,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
 
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

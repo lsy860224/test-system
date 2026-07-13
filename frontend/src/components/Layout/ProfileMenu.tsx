@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { authApi } from '@/api/auth'
 import Button from '@/components/ui/Button'
 import { FormField as F } from '@/components/ui/FormField'
+import { getErrorMessage } from '@/utils/errorMessage'
 
 export default function ProfileMenu() {
   const { user } = useAuthStore()
@@ -66,7 +67,7 @@ function PasswordChangeForm({ onClose, onDone }: { onClose: () => void; onDone: 
       alert('비밀번호가 변경되었습니다')
       onDone()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '변경 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '변경 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

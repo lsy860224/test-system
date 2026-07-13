@@ -23,6 +23,7 @@ def get_current_user(
     try:
         payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.algorithm])
         user_id = int(payload.get("sub", 0))
+        token_version = payload.get("tv", 0)
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     except JWTError:
@@ -31,6 +32,9 @@ def get_current_user(
     user = db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if token_version != (user.token_version or 0):
+        # 비밀번호 변경 이후 발급된 새 토큰이 아니면 거부 — 탈취된 구 토큰 무효화
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     return user
 
 REQUESTER_ROLE = "의뢰자"

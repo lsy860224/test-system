@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { useFormState } from '@/hooks/useFormState'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   vendorId: number | null
@@ -99,7 +101,8 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
 
   // ── 기본정보 저장 ──────────────────────────────────────
   const handleSave = async () => {
-    if (!form.name.trim()) { alert('시험소명을 입력하세요'); return }
+    const error = validateRequired([[!form.name.trim(), '시험소명을 입력하세요']])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload = {
@@ -113,7 +116,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
       else { await vendorApi.create(payload) }
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally { setSaving(false) }
   }
@@ -130,7 +133,8 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   // ── 단가표 저장 ────────────────────────────────────────
   const handleSaveScope = async () => {
     if (!vendorId) return
-    if (!scopeForm.test_name.trim()) { alert('시험 항목명을 입력하세요'); return }
+    const scopeError = validateRequired([[!scopeForm.test_name.trim(), '시험 항목명을 입력하세요']])
+    if (scopeError) { alert(scopeError); return }
     setSavingScope(true)
     try {
       const payload = {

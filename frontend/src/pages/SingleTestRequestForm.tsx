@@ -13,6 +13,8 @@ import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 import { useFormState } from '@/hooks/useFormState'
 
 interface Props {
@@ -132,7 +134,7 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
       const updated = await action
       setDetail(updated)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '처리 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '처리 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setActing(false)
@@ -222,9 +224,12 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
   }
 
   const handleSave = async () => {
-    if (!form.requesting_dept.trim()) { alert('의뢰 부서를 입력하세요'); return }
-    if (!form.requester_name.trim()) { alert('의뢰자 이름을 입력하세요'); return }
-    if (!form.test_name.trim()) { alert('시험명을 입력하세요'); return }
+    const error = validateRequired([
+      [!form.requesting_dept.trim(), '의뢰 부서를 입력하세요'],
+      [!form.requester_name.trim(), '의뢰자 이름을 입력하세요'],
+      [!form.test_name.trim(), '시험명을 입력하세요'],
+    ])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload: Record<string, unknown> = {
@@ -257,7 +262,7 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
 
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

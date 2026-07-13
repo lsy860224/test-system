@@ -3,43 +3,31 @@ import { scheduleApi, type ProjectScheduleSummary } from '@/api/schedules'
 import Table, { type Column } from '@/components/ui/Table'
 import Badge, { STATUS_COLORS, SHORT_LABELS } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { toggleSort, sortByKey, type SortState } from '@/utils/sort'
+import { toggleSort } from '@/utils/sort'
 import { useUIStore } from '@/stores/uiStore'
+import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
+import Pagination from '@/components/ui/Pagination'
 import ScheduleForm from './ScheduleForm'
 import ScheduleProjectDetail from './ScheduleProjectDetail'
 import GanttChart from './GanttChart'
 
-// 정렬을 위해 전체 목록을 한 번에 불러오고, 페이지네이션은 화면에서 잘라서 보여준다
-const FETCH_SIZE = 1000
-const PAGE_SIZE = 30
-
 const STATUS_ORDER = ['계획', '준비중', '진행중', '완료', '지연', '취소']
 
 export default function Schedule() {
-  const [items, setItems] = useState<ProjectScheduleSummary[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
+  // 목록 화면 밀도가 높아 다른 목록(20건/페이지)보다 한 페이지에 30건을 보여준다
+  const { total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
+    useListPagination<ProjectScheduleSummary>({ key: 'project_name', dir: 'asc' }, 30)
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: 'project_name', dir: 'asc' })
   const [formScheduleId, setFormScheduleId] = useState<number | null | undefined>(undefined)
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(undefined)
   const [view, setView] = useState<'list' | 'gantt'>('list')
 
-  const load = () => {
-    setLoading(true)
-    scheduleApi.byProjectSummary({ size: FETCH_SIZE, search: search || undefined })
-      .then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => scheduleApi.byProjectSummary({ size: FETCH_SIZE, search: search || undefined }))
 
   useEffect(() => { load() }, [])
 
   const setPageCountLabel = useUIStore((s) => s.setPageCountLabel)
   useEffect(() => { setPageCountLabel(`프로젝트 ${total}건`) }, [total])
-
-  const sortedItems = sortByKey(items, sort)
-  const pageItems = sortedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const columns: Column<ProjectScheduleSummary>[] = [
     {
@@ -96,13 +84,7 @@ export default function Schedule() {
             sort={sort} onSortChange={(key) => { setSort((prev) => toggleSort(prev, key)); setPage(1) }}
             onRowClick={(r) => setSelectedProjectId(r.project_id)} />
 
-          {total > PAGE_SIZE && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, flexShrink: 0 }}>
-              <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>이전</Button>
-              <span style={{ fontSize: 13, lineHeight: '28px', color: 'var(--text-secondary)' }}>{page} / {Math.ceil(total / PAGE_SIZE)}</span>
-              <Button variant="secondary" size="sm" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>다음</Button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </>
       )}
 

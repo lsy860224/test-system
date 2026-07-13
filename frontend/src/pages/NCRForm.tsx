@@ -7,6 +7,8 @@ import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
 import { useFormState } from '@/hooks/useFormState'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 export interface NCRPrefill {
   part_name?: string
@@ -169,9 +171,12 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
   }
 
   const handleSave = async () => {
-    if (!form.part_name.trim()) { alert('부품명을 입력하세요'); return }
-    if (!form.issue_summary.trim()) { alert('이슈 요약을 입력하세요'); return }
-    if (!form.detected_date) { alert('발생일을 입력하세요'); return }
+    const error = validateRequired([
+      [!form.part_name.trim(), '부품명을 입력하세요'],
+      [!form.issue_summary.trim(), '이슈 요약을 입력하세요'],
+      [!form.detected_date, '발생일을 입력하세요'],
+    ])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       const payload: Record<string, unknown> = {
@@ -206,7 +211,7 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
 
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

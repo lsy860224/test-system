@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button'
 import SortableTh from '@/components/ui/SortableTh'
 import { type SortState, toggleSort, sortByKey } from '@/utils/sort'
 import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
+import Pagination from '@/components/ui/Pagination'
 import EquipmentForm from '@/pages/EquipmentForm'
 import { useUIStore } from '@/stores/uiStore'
 
@@ -191,13 +192,7 @@ export default function EquipmentList() {
           )}
 
           {/* pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
-              <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>이전</Button>
-              <span style={{ lineHeight: '32px', fontSize: 13, color: 'var(--text-muted)' }}>{page} / {totalPages}</span>
-              <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>다음</Button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </>
       )}
 

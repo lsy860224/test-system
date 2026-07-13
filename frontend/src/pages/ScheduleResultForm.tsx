@@ -2,6 +2,8 @@ import React, { type CSSProperties, useEffect, useState } from 'react'
 import { scheduleApi } from '@/api/schedules'
 import Button from '@/components/ui/Button'
 import { FormField as F } from '@/components/ui/FormField'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   scheduleId: number
@@ -31,13 +33,14 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
   }, [scheduleId])
 
   const handleSave = async () => {
-    if (!dataPath.trim()) { alert('데이터 저장 경로를 입력하세요 (합격/불합격 관계없이 필수)'); return }
+    const error = validateRequired([[!dataPath.trim(), '데이터 저장 경로를 입력하세요 (합격/불합격 관계없이 필수)']])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       await scheduleApi.recordResult(scheduleId, result, actualEnd, dataPath.trim())
       onSaved(result)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

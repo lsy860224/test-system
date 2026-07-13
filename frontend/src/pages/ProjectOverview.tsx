@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { projectsApi, type ProjectItem, projectStatusLabel } from '@/api/projects'
 import { customersApi, type CustomerListItem } from '@/api/customers'
 import { usersApi, type AppUser } from '@/api/users'
-import Table, { type Column, type SortState } from '@/components/ui/Table'
+import Table, { type Column } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { toggleSort, sortByKey } from '@/utils/sort'
 import { useUIStore } from '@/stores/uiStore'
+import { useListPagination, FETCH_SIZE, PAGE_SIZE } from '@/hooks/useListPagination'
+import Pagination from '@/components/ui/Pagination'
 import ProjectForm from '@/pages/ProjectForm'
 
 const PHASES = ['RFQ', '개발', 'DV', 'PV', '양산준비', '양산']
-const FETCH_SIZE = 1000
 
 interface ProjectRow extends ProjectItem {
   customer_name?: string
@@ -20,32 +21,23 @@ interface ProjectRow extends ProjectItem {
 
 export default function ProjectOverview() {
   const navigate = useNavigate()
-  const [items, setItems] = useState<ProjectItem[]>([])
+  const { items, total, loading, page, setPage, sort, setSort, totalPages, runLoad } =
+    useListPagination<ProjectItem>({ key: '', dir: 'desc' }) // 기본은 서버가 내려주는 최신순 그대로 유지
   const [customers, setCustomers] = useState<CustomerListItem[]>([])
   const [users, setUsers] = useState<AppUser[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPhase, setFilterPhase] = useState('')
   const [filterCustomer, setFilterCustomer] = useState<number | ''>('')
-  const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ key: '', dir: 'desc' }) // 기본은 서버가 내려주는 최신순 그대로 유지
   const [formProjectId, setFormProjectId] = useState<number | null | undefined>(undefined)
-  const PAGE_SIZE = 20
 
-  const load = () => {
-    setLoading(true)
-    projectsApi.list({
-      size: FETCH_SIZE,
-      status: filterStatus || undefined,
-      phase: filterPhase || undefined,
-      customer_id: filterCustomer || undefined,
-      search: search || undefined,
-    })
-      .then((r) => { setItems(r.items); setTotal(r.total) })
-      .finally(() => setLoading(false))
-  }
+  const load = () => runLoad(() => projectsApi.list({
+    size: FETCH_SIZE,
+    status: filterStatus || undefined,
+    phase: filterPhase || undefined,
+    customer_id: filterCustomer || undefined,
+    search: search || undefined,
+  }))
 
   useEffect(() => { customersApi.list({ size: 1000 }).then((r) => setCustomers(r.items)) }, [])
   useEffect(() => { usersApi.list().then(setUsers) }, [])
@@ -59,6 +51,7 @@ export default function ProjectOverview() {
   const customerName = (id: number) => customers.find((c) => c.id === id)?.name
   const assigneeName = (id?: number) => id != null ? users.find((u) => u.id === id)?.name : undefined
 
+  // customer_name/assignee_name은 items에 없는 연계 필드라 훅의 pageItems를 못 쓰고 여기서 직접 정렬·페이징한다
   const rows: ProjectRow[] = items.map((it) => ({ ...it, customer_name: customerName(it.customer_id), assignee_name: assigneeName(it.assignee_id) }))
   const sortedRows = sortByKey(rows, sort)
   const pageRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -129,13 +122,7 @@ export default function ProjectOverview() {
         onRowClick={(r) => setFormProjectId(r.id)}
       />
 
-      {total > PAGE_SIZE && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-          <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>이전</Button>
-          <span style={{ fontSize: 13, lineHeight: '28px', color: 'var(--text-secondary)' }}>{page} / {Math.ceil(total / PAGE_SIZE)}</span>
-          <Button variant="secondary" size="sm" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>다음</Button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {formProjectId !== undefined && (
         <ProjectForm

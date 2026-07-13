@@ -35,6 +35,22 @@ if not db_path.exists():
     warnings.append(f"운영 DB 파일이 아직 없다 — 최초 기동으로 새로 생성됨: {db_path}")
 else:
     warnings.append(f"운영 DB 파일 확인됨: {db_path} — 스키마 변경 배포라면 백업을 먼저 떴는지 확인.")
+    try:
+        import bcrypt
+        from database import SessionLocal
+        from models.user import User
+        db = SessionLocal()
+        try:
+            admin = db.query(User).filter(User.username == "admin").first()
+            if admin and bcrypt.checkpw(b"admin123", admin.password_hash.encode()):
+                errors.append(
+                    "admin 계정 비밀번호가 기본값(admin123) 그대로다. "
+                    "즉시 로그인해 비밀번호를 변경한 뒤 재배포하라."
+                )
+        finally:
+            db.close()
+    except Exception as e:
+        warnings.append(f"admin 기본 비밀번호 여부를 확인하지 못함: {e}")
 
 upload_dir = Path(settings.upload_dir)
 if not upload_dir.is_absolute():

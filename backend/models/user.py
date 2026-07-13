@@ -13,3 +13,4 @@ class User(Base):
     is_active     = Column(Boolean, default=True)
     last_login    = Column(DateTime, nullable=True)
     created_at    = Column(DateTime, server_default=func.now())
+    token_version = Column(Integer, default=0)  # 비밀번호 변경 시 증가 — 이전에 발급된 JWT를 무효화

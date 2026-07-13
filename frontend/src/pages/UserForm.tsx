@@ -2,6 +2,8 @@ import React, { type CSSProperties, useEffect, useState } from 'react'
 import { usersApi, USER_ROLES, type AppUser } from '@/api/users'
 import Button from '@/components/ui/Button'
 import { FormField as F } from '@/components/ui/FormField'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   user: AppUser | null
@@ -25,9 +27,12 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
   }, [user])
 
   const handleSave = async () => {
-    if (!isEdit && !username.trim()) { alert('아이디를 입력하세요'); return }
-    if (!name.trim()) { alert('이름을 입력하세요'); return }
-    if (!isEdit && !password) { alert('비밀번호를 입력하세요'); return }
+    const error = validateRequired([
+      [!isEdit && !username.trim(), '아이디를 입력하세요'],
+      [!name.trim(), '이름을 입력하세요'],
+      [!isEdit && !password, '비밀번호를 입력하세요'],
+    ])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       if (isEdit && user) {
@@ -37,7 +42,7 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
       }
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

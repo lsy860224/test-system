@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { useFormState } from '@/hooks/useFormState'
+import { getErrorMessage } from '@/utils/errorMessage'
 
 interface Props {
   scheduleId: number | null
@@ -108,7 +109,7 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
       }
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)

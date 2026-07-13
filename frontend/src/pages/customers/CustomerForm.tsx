@@ -3,6 +3,8 @@ import { customersApi, type Customer, type Contact, type Attachment } from '@/ap
 import Button from '@/components/ui/Button'
 import { FileDropZone } from '@/components/ui/FileDropZone'
 import { useFormState } from '@/hooks/useFormState'
+import { getErrorMessage } from '@/utils/errorMessage'
+import { validateRequired } from '@/utils/validateRequired'
 
 interface Props {
   customerId: number | null
@@ -71,7 +73,8 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
   const removePending = (idx: number) => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))
 
   const handleSave = async () => {
-    if (!info.name.trim()) { alert('업체명을 입력하세요'); return }
+    const error = validateRequired([[!info.name.trim(), '업체명을 입력하세요']])
+    if (error) { alert(error); return }
     setSaving(true)
     try {
       let cid = savedCustomerId
@@ -92,7 +95,7 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
       }
       onSaved()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '저장 중 오류가 발생했습니다'
+      const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally {
       setSaving(false)
