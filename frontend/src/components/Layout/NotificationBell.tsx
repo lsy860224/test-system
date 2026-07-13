@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { notificationsApi, type AppNotification } from '@/api/notifications'
+import { Overlay } from '@/components/ui/Modal'
+import Button from '@/components/ui/Button'
+import ProjectForm from '@/pages/ProjectForm'
+import SOPForm from '@/pages/SOPForm'
 
 const POLL_MS = 30000
 
@@ -19,6 +23,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [detailNotif, setDetailNotif] = useState<AppNotification | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   const load = () => notificationsApi.list().then((r) => { setItems(r.items); setUnreadCount(r.unread_count) })
@@ -38,14 +43,24 @@ export default function NotificationBell() {
   }, [])
 
   const handleItemClick = async (n: AppNotification) => {
-    if (!n.is_read) await notificationsApi.markRead(n.id)
+    if (!n.is_read) { await notificationsApi.markRead(n.id); load() }
     setOpen(false)
-    load()
-    if (n.link_path) navigate(n.link_path)
+    setDetailNotif(n)
+  }
+
+  const handleGoTo = () => {
+    if (detailNotif?.link_path) navigate(detailNotif.link_path)
+    setDetailNotif(null)
   }
 
   const handleMarkAllRead = async () => {
     await notificationsApi.markAllRead()
+    load()
+  }
+
+  const handleRemove = async (e: ReactMouseEvent, id: number) => {
+    e.stopPropagation()
+    await notificationsApi.remove(id)
     load()
   }
 
@@ -93,16 +108,62 @@ export default function NotificationBell() {
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                   {!n.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', marginTop: 5, flexShrink: 0 }} />}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{n.title}</div>
-                    {n.message && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{n.message}</div>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</div>
+                    {n.message && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.message}</div>}
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{timeAgo(n.created_at)}</div>
                   </div>
+                  <button
+                    onClick={(e) => handleRemove(e, n.id)}
+                    aria-label="알림 제거"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, lineHeight: 1, padding: 2, flexShrink: 0 }}
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
             ))
           )}
         </div>
+      )}
+
+      {detailNotif?.related_type === 'sop' && detailNotif.related_id != null && (
+        <SOPForm
+          sopId={detailNotif.related_id}
+          onClose={() => setDetailNotif(null)}
+          onSaved={() => setDetailNotif(null)}
+        />
+      )}
+
+      {detailNotif?.related_type?.startsWith('project_deadline') && detailNotif.related_id != null && (
+        <ProjectForm
+          projectId={detailNotif.related_id}
+          onClose={() => setDetailNotif(null)}
+          onSaved={() => setDetailNotif(null)}
+        />
+      )}
+
+      {detailNotif && detailNotif.related_type !== 'sop' && !detailNotif.related_type?.startsWith('project_deadline') && (
+        <Overlay onClose={() => setDetailNotif(null)} width={420}>
+          <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>알림 상세</h3>
+            <button onClick={() => setDetailNotif(null)}
+              style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              ×
+            </button>
+          </div>
+          <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{detailNotif.title}</div>
+            {detailNotif.message && (
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{detailNotif.message}</div>
+            )}
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(detailNotif.created_at).toLocaleString('ko-KR')}</div>
+          </div>
+          <div style={{ padding: '12px 22px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button variant="secondary" size="sm" onClick={() => setDetailNotif(null)}>닫기</Button>
+            {detailNotif.link_path && <Button size="sm" onClick={handleGoTo}>바로가기</Button>}
+          </div>
+        </Overlay>
       )}
     </div>
   )

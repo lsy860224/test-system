@@ -9,6 +9,7 @@ router = APIRouter(prefix="/notifications", tags=["알림"])
 
 @router.get("/", response_model=NotificationList)
 def list_notifications(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    notification_service.sync_project_deadline_notifications(db)
     return notification_service.list_for_user(db, current_user.id)
 
 
@@ -20,3 +21,8 @@ def mark_read(notif_id: int, db: Session = Depends(get_db), current_user=Depends
 @router.patch("/read-all", status_code=204)
 def mark_all_read(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     notification_service.mark_all_read(db, current_user.id)
+
+
+@router.delete("/{notif_id}", status_code=204)
+def delete_notification(notif_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    notification_service.delete_notification(db, current_user.id, notif_id)

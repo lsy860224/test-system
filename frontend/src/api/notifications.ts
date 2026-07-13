@@ -15,4 +15,5 @@ export const notificationsApi = {
   list: () => client.get<{ items: AppNotification[]; unread_count: number }>('/notifications/').then((r) => r.data),
   markRead: (id: number) => client.patch(`/notifications/${id}/read`),
   markAllRead: () => client.patch('/notifications/read-all'),
+  remove: (id: number) => client.delete(`/notifications/${id}`),
 }

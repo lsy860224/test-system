@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { todosApi, type TodoCard } from '@/api/todos'
+import NCRForm from '@/pages/NCRForm'
+import EquipmentForm from '@/pages/EquipmentForm'
+import ScheduleResultForm from '@/pages/ScheduleResultForm'
 
 const SEVERITY_COLOR: Record<TodoCard['severity'], string> = {
   High: '#E53E3E',
@@ -22,6 +25,7 @@ export default function TodoBoard() {
   const [cards, setCards] = useState<TodoCard[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [actionCard, setActionCard] = useState<TodoCard | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -77,17 +81,17 @@ export default function TodoBoard() {
             </div>
           ) : (
             cards.map((c, i) => (
-              <a key={i} href={c.link_path} style={{
-                display: 'block', padding: '10px 12px', marginBottom: 8,
+              <div key={i} onClick={() => setActionCard(c)} style={{
+                display: 'block', padding: '10px 12px', marginBottom: 8, cursor: 'pointer',
                 borderRadius: 8, border: `1px solid ${SEVERITY_COLOR[c.severity]}33`,
-                background: `${SEVERITY_COLOR[c.severity]}0D`, textDecoration: 'none',
+                background: `${SEVERITY_COLOR[c.severity]}0D`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontSize: 13 }}>{TYPE_ICON[c.type]}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>{c.title}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{c.description}</div>
-              </a>
+              </div>
             ))
           )}
           {hiddenCount > 0 && (
@@ -96,6 +100,40 @@ export default function TodoBoard() {
             </div>
           )}
         </div>
+      )}
+
+      {actionCard?.action.kind === 'ncr_new' && (
+        <NCRForm
+          ncrId={null}
+          initialValues={{
+            test_schedule_id: String(actionCard.action.test_schedule_id),
+            standard_item_id: String(actionCard.action.standard_item_id),
+            issue_summary: actionCard.action.issue_summary,
+          }}
+          onClose={() => setActionCard(null)}
+          onSaved={() => { setActionCard(null); load() }}
+        />
+      )}
+      {actionCard?.action.kind === 'ncr_edit' && (
+        <NCRForm
+          ncrId={actionCard.action.ncr_id}
+          onClose={() => setActionCard(null)}
+          onSaved={() => { setActionCard(null); load() }}
+        />
+      )}
+      {actionCard?.action.kind === 'equipment_edit' && (
+        <EquipmentForm
+          equipmentId={actionCard.action.equipment_id}
+          onClose={() => setActionCard(null)}
+          onSaved={() => { setActionCard(null); load() }}
+        />
+      )}
+      {actionCard?.action.kind === 'schedule_result' && (
+        <ScheduleResultForm
+          scheduleId={actionCard.action.schedule_id}
+          onClose={() => setActionCard(null)}
+          onSaved={() => { setActionCard(null); load() }}
+        />
       )}
     </aside>
   )

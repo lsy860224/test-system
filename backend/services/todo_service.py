@@ -27,9 +27,15 @@ def get_todo_cards(db: Session) -> dict:
         ncr_cards.append({
             "type": "ncr_pending",
             "severity": "High",
-            "title": f"{proj_names.get(s.project_id, '(프로젝트 미상)')} — NCR 작성 필요",
+            "title": f"NCR 작성 필요 — {proj_names.get(s.project_id, '(프로젝트 미상)')}",
             "description": f"{std_names.get(s.standard_item_id, '')} 시험 불합격 — 연결된 NCR이 없습니다",
             "link_path": "/schedule",
+            "action": {
+                "kind": "ncr_new",
+                "test_schedule_id": s.id,
+                "standard_item_id": s.standard_item_id,
+                "issue_summary": f"{std_names.get(s.standard_item_id, '')} 시험 불합격",
+            },
             "_sort": 0,
         })
 
@@ -39,9 +45,10 @@ def get_todo_cards(db: Session) -> dict:
         ncr_cards.append({
             "type": "ncr_pending",
             "severity": "Med",
-            "title": f"{n.ncr_number} 작성 미완료",
+            "title": f"작성 미완료 — {n.ncr_number}",
             "description": f"{n.part_name} — {n.issue_summary}",
             "link_path": "/ncr",
+            "action": {"kind": "ncr_edit", "ncr_id": n.id},
             "_sort": -days_open,  # 오래 방치된 것부터
         })
 
@@ -52,9 +59,10 @@ def get_todo_cards(db: Session) -> dict:
         calibration_cards.append({
             "type": "calibration",
             "severity": "High" if expired else "Med",
-            "title": f"{a['name']} 교정 {'만료' if expired else '만료 임박'}",
+            "title": f"교정 {'만료' if expired else '만료 임박'} — {a['name']}",
             "description": f"만료일 {a['latest_expiry']} ({'D+' + str(abs(a['days_to_expiry'])) if expired else 'D-' + str(a['days_to_expiry'])})",
             "link_path": "/equipment",
+            "action": {"kind": "equipment_edit", "equipment_id": a["id"]},
             "_sort": a["days_to_expiry"],  # 만료에 가까울수록(음수일수록) 우선
         })
 
@@ -70,9 +78,10 @@ def get_todo_cards(db: Session) -> dict:
         deadline_cards.append({
             "type": "deadline",
             "severity": "High" if overdue else "Med",
-            "title": f"{proj_names.get(s.project_id, '(프로젝트 미상)')} 시험 마감 {'초과' if overdue else f'D-{days_left}'}",
+            "title": f"시험 마감 {'초과' if overdue else f'D-{days_left}'} — {proj_names.get(s.project_id, '(프로젝트 미상)')}",
             "description": f"{std_names.get(s.standard_item_id, '')} (계획 완료 {s.planned_end.isoformat()})",
             "link_path": "/schedule",
+            "action": {"kind": "schedule_result", "schedule_id": s.id},
             "_sort": days_left,  # 마감이 가까울수록(더 밀렸을수록) 우선
         })
 

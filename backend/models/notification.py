@@ -14,4 +14,5 @@ class Notification(Base):
     related_type = Column(String(50),  nullable=True)   # sop 등
     related_id   = Column(Integer,     nullable=True)
     is_read      = Column(Boolean, default=False)
+    is_removed   = Column(Boolean, default=False)  # 사용자가 수동으로 제거한 알림 (재생성 방지를 위해 실제 row는 남김)
     created_at   = Column(DateTime, server_default=func.now())

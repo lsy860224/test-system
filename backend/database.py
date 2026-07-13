@@ -79,6 +79,11 @@ def _migrate_db():
         "ALTER TABLE sops DROP COLUMN approved_by",
         # project_standard_items: 항목별 비고는 가독성이 떨어져 규격 단위 비고(project_standard_notes)로 대체 (2026-07-10)
         "ALTER TABLE project_standard_items DROP COLUMN notes",
+        # notifications: 사용자가 알림을 수동 제거해도 재생성 방지 판정에 쓰도록 소프트 삭제 플래그 추가 (2026-07-13)
+        "ALTER TABLE notifications ADD COLUMN is_removed BOOLEAN DEFAULT 0",
+        # notifications: 완료예정일 동기화가 짧은 시간 내 동시 요청될 때(예: 폴링 겹침) 같은 사용자에게
+        # 같은 프로젝트·같은 D-day 알림이 중복 생성되는 경합을 DB 레벨에서 차단 (2026-07-13, 실제 중복 발생 확인 후 추가)
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_deadline_dedup ON notifications(user_id, related_type, related_id) WHERE related_type LIKE 'project_deadline_%'",
     ]
     with engine.connect() as conn:
         for sql in migrations:
