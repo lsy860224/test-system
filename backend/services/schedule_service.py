@@ -1,9 +1,9 @@
 from datetime import date, timedelta
 from fastapi import HTTPException
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, select
 from sqlalchemy.orm import Session
 from models.schedule import TestSchedule
-from models.project import Project
+from models.project import Project, project_standard_notes
 from models.standard import StandardItem
 from models.customer import Customer
 from models.item import Item
@@ -285,6 +285,13 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
         db.query(NCRReport.test_schedule_id).filter(NCRReport.test_schedule_id.isnot(None)).all()
     }
 
+    notes_map = {
+        r.standard_no: r.notes for r in db.execute(
+            select(project_standard_notes.c.standard_no, project_standard_notes.c.notes)
+            .where(project_standard_notes.c.project_id == project_id)
+        ).all()
+    }
+
     groups: dict[str, dict] = {}
     counts = {k: 0 for k in STATUS_KEYS}
     for s in std_items:
@@ -299,6 +306,7 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
             "standard_no": s.standard_no,
             "standard_name": s.standard_name,
             "revision_no": s.revision_no,
+            "notes": notes_map.get(key),
             "items": [],
         })
 

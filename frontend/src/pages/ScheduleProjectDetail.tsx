@@ -225,6 +225,12 @@ function StandardGroupCard({
         <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 140 }}>시험 항목 {scheduledCount}/{group.items.length}건 (선택됨)</span>
       </div>
 
+      {group.notes && (
+        <div style={{ padding: '6px 16px', fontSize: 12, color: 'var(--text-secondary)', background: '#FFFBEA', borderTop: '1px solid var(--border)' }}>
+          📌 {group.notes}
+        </div>
+      )}
+
       {expanded && (
         <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '1px solid var(--border)' }}>
           <thead>

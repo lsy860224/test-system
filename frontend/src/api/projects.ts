@@ -74,6 +74,7 @@ export interface ScheduleDetailGroup {
   standard_no: string | null
   standard_name: string | null
   revision_no: string | null
+  notes?: string | null   // 이 프로젝트에서 이 규격에 적용되는 조건/비고
   items: ScheduleDetailItem[]
 }
 
