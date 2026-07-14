@@ -65,3 +65,11 @@ class StandardGroupUpdate(BaseModel):
 
 class StandardGroupUpdateResult(BaseModel):
     updated: int
+
+class StandardBulkUpdate(BaseModel):
+    item_ids: list[int]
+    category_id: Optional[int] = None
+    source_type: Optional[str] = None
+
+class StandardBulkUpdateResult(BaseModel):
+    updated: int

@@ -42,6 +42,12 @@ export interface StandardGroupUpdate {
   revision_no?: string
 }
 
+export interface StandardBulkUpdate {
+  item_ids: number[]
+  category_id?: number
+  source_type?: string
+}
+
 export const standardApi = {
   categories: () => client.get<StandardCategory[]>('/standards/categories').then((r) => r.data),
 
@@ -60,6 +66,9 @@ export const standardApi = {
 
   updateGroupInfo: (data: StandardGroupUpdate) =>
     client.put<{ updated: number }>('/standards/group-info', data).then((r) => r.data),
+
+  bulkUpdate: (data: StandardBulkUpdate) =>
+    client.put<{ updated: number }>('/standards/bulk', data).then((r) => r.data),
 
   importExcel: async (file: File): Promise<{ created: number; skipped: number; errors: string[] }> => {
     const form = new FormData()

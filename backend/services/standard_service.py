@@ -78,6 +78,28 @@ def update_group_info(db: Session, body, changed_by: int) -> dict:
     db.commit()
     return {"updated": len(items)}
 
+def bulk_update(db: Session, body, changed_by: int) -> dict:
+    """선택한 항목들의 분류/수행방식을 일괄 변경 (수정 모드, admin/팀장 전용)."""
+    items = db.query(StandardItem).filter(
+        StandardItem.id.in_(body.item_ids), StandardItem.is_deleted == False
+    ).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="선택한 항목을 찾을 수 없습니다")
+
+    updates = {k: v for k, v in {"category_id": body.category_id, "source_type": body.source_type}.items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="변경할 값을 하나 이상 선택하세요")
+
+    for item in items:
+        changes = _track_changes(item, updates, changed_by)
+        for field, value in updates.items():
+            setattr(item, field, value)
+        item.updated_at = datetime.utcnow()
+        for h in changes:
+            db.add(h)
+    db.commit()
+    return {"updated": len(items)}
+
 def soft_delete(db: Session, item_id: int):
     item = get_item(db, item_id)
     item.is_deleted = True

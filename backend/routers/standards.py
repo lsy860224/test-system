@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import Optional
-from dependencies import get_db, require_staff
+from dependencies import get_db, require_staff, require_role
 from schemas.standard import (
     StandardItemCreate, StandardItemUpdate, StandardItemOut,
     PaginatedStandardItems, StandardHistoryOut, StandardCategoryOut,
     StandardGroupUpdate, StandardGroupUpdateResult,
+    StandardBulkUpdate, StandardBulkUpdateResult,
 )
 from services import standard_service
 
@@ -53,6 +54,14 @@ def create_standard_item(body: StandardItemCreate, db: Session = Depends(get_db)
 @router.put("/group-info", response_model=StandardGroupUpdateResult)
 def update_standard_group_info(body: StandardGroupUpdate, db: Session = Depends(get_db), current_user=Depends(require_staff)):
     return standard_service.update_group_info(db, body, current_user.id)
+
+@router.put("/bulk", response_model=StandardBulkUpdateResult)
+def bulk_update_standard_items(
+    body: StandardBulkUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin", "팀장")),
+):
+    return standard_service.bulk_update(db, body, current_user.id)
 
 @router.get("/{item_id}", response_model=StandardItemOut)
 def get_standard_item(item_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):

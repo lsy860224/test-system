@@ -44,3 +44,10 @@ def require_staff(current_user=Depends(get_current_user)):
     if current_user.role == REQUESTER_ROLE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="시험평가팀만 접근할 수 있습니다")
     return current_user
+
+def require_role(*roles: str):
+    def _check(current_user=Depends(get_current_user)):
+        if current_user.role not in roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="권한이 없습니다")
+        return current_user
+    return _check

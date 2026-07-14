@@ -5,6 +5,7 @@ import Table, { type Column, type SortState } from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
 import StandardItemForm from '@/pages/StandardItemForm'
 
 interface StandardGroup {
@@ -57,6 +58,9 @@ function sortItems(items: StandardItem[], sort: SortState): StandardItem[] {
 }
 
 export default function StandardMatrix() {
+  const currentUser = useAuthStore((s) => s.user)
+  const canBulkEdit = currentUser?.role === 'admin' || currentUser?.role === '팀장'
+
   const [items, setItems] = useState<StandardItem[]>([])
   const [categories, setCategories] = useState<StandardCategory[]>([])
   const [total, setTotal] = useState(0)
@@ -91,6 +95,16 @@ export default function StandardMatrix() {
 
   // 그룹 내 시험 항목 추가 상태
   const [addItemHeader, setAddItemHeader] = useState<{ standard_no?: string; standard_name?: string; revision_no?: string } | undefined>(undefined)
+
+  // 셀별 인라인 드롭다운 (분류/수행방식) 상태
+  const [editingCell, setEditingCell] = useState<{ id: number; field: 'category_id' | 'source_type' } | null>(null)
+
+  // 수정 모드 (체크박스 일괄변경, admin/팀장 전용) 상태
+  const [editMode, setEditMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkCategory, setBulkCategory] = useState<number | ''>('')
+  const [bulkSourceType, setBulkSourceType] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   // 규격 단위로 묶어 보기 위해 필터에 맞는 전체 항목을 한 번에 불러온다 (그룹 경계가 페이지에 걸쳐 끊기지 않도록)
   const load = () => {
@@ -149,6 +163,66 @@ export default function StandardMatrix() {
     setCopyFromStdNo(undefined)
     setAddItemHeader(undefined)
     load()
+  }
+
+  const handleInlineChange = async (row: StandardItem, field: 'category_id' | 'source_type', value: string) => {
+    setEditingCell(null)
+    try {
+      await standardApi.update(row.id, {
+        ...row,
+        [field]: field === 'category_id' ? (value ? Number(value) : undefined) : value,
+      })
+      load()
+    } catch {
+      alert('변경 중 오류가 발생했습니다')
+    }
+  }
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === selectedItems.length ? new Set() : new Set(selectedItems.map((it) => it.id))
+    )
+  }
+
+  const toggleEditMode = () => {
+    setEditMode((prev) => !prev)
+    setSelectedIds(new Set())
+  }
+
+  const handleBulkApply = async () => {
+    if (selectedIds.size === 0 || (!bulkCategory && !bulkSourceType)) return
+    const changeLines: string[] = []
+    if (bulkCategory) changeLines.push(`분류 → ${categories.find((c) => c.id === bulkCategory)?.name_ko ?? bulkCategory}`)
+    if (bulkSourceType) changeLines.push(`수행방식 → ${bulkSourceType}`)
+    const confirmed = confirm(
+      `선택한 ${selectedIds.size}건의 항목을 다음과 같이 변경합니다.\n${changeLines.join('\n')}\n\n계속하시겠습니까?`
+    )
+    if (!confirmed) return
+    setBulkSaving(true)
+    try {
+      await standardApi.bulkUpdate({
+        item_ids: [...selectedIds],
+        category_id: bulkCategory || undefined,
+        source_type: bulkSourceType || undefined,
+      })
+      setSelectedIds(new Set())
+      setBulkCategory('')
+      setBulkSourceType('')
+      load()
+    } catch {
+      alert('일괄 변경 중 오류가 발생했습니다')
+    } finally {
+      setBulkSaving(false)
+    }
   }
 
   const openAddItem = () => {
@@ -273,24 +347,70 @@ export default function StandardMatrix() {
     { key: 'standard_code', header: '항목 No.', width: 90, sortable: true },
     { key: 'name', header: '시험 항목명', width: 200, sortable: true },
     {
-      key: 'category_name', header: '분류', width: 100, sortable: true,
-      render: (r) => r.category_name
-        ? <Badge label={r.category_name} color={r.category_color} />
-        : <span style={{ color: 'var(--text-muted)' }}>-</span>,
+      key: 'category_name', header: '분류', width: 110, sortable: true,
+      render: (r) => editingCell?.id === r.id && editingCell.field === 'category_id' ? (
+        <select
+          autoFocus
+          defaultValue={r.category_id ?? ''}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={() => setEditingCell(null)}
+          onChange={(e) => handleInlineChange(r, 'category_id', e.target.value)}
+          style={{ padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, width: '100%' }}
+        >
+          <option value="">-</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name_ko}</option>)}
+        </select>
+      ) : (
+        <span onClick={(e) => { e.stopPropagation(); setEditingCell({ id: r.id, field: 'category_id' }) }} style={{ cursor: 'pointer' }}>
+          {r.category_name ? <Badge label={r.category_name} color={r.category_color} /> : <span style={{ color: 'var(--text-muted)' }}>-</span>}
+        </span>
+      ),
     },
     {
       key: 'test_condition_summary', header: '시험 조건',
       render: (r) => r.test_condition_summary ?? '-',
     },
     {
-      key: 'source_type', header: '수행방식', width: 90, sortable: true,
-      render: (r) => <Badge label={r.source_type} />,
+      key: 'source_type', header: '수행방식', width: 100, sortable: true,
+      render: (r) => editingCell?.id === r.id && editingCell.field === 'source_type' ? (
+        <select
+          autoFocus
+          defaultValue={r.source_type}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={() => setEditingCell(null)}
+          onChange={(e) => handleInlineChange(r, 'source_type', e.target.value)}
+          style={{ padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, width: '100%' }}
+        >
+          {SOURCE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      ) : (
+        <span onClick={(e) => { e.stopPropagation(); setEditingCell({ id: r.id, field: 'source_type' }) }} style={{ cursor: 'pointer' }}>
+          <Badge label={r.source_type} />
+        </span>
+      ),
     },
     {
       key: 'sop_status', header: '절차서', width: 90, sortable: true,
       render: (r) => <Badge label={r.sop_status} color={SOP_COVERAGE_COLORS[r.sop_status]} />,
     },
   ]
+
+  const displayItemColumns: Column<StandardItem>[] = editMode
+    ? [
+        {
+          key: '__select', header: '', width: 36,
+          render: (r) => (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(r.id)}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => toggleSelected(r.id)}
+            />
+          ),
+        },
+        ...itemColumns,
+      ]
+    : itemColumns
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
@@ -345,8 +465,53 @@ export default function StandardMatrix() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
               <Button variant="secondary" size="sm" onClick={openGroupInfoEdit}>규격 정보 수정</Button>
               <Button size="sm" onClick={openAddItem}>+ 시험 항목 추가</Button>
+              {canBulkEdit && (
+                <Button variant={editMode ? 'primary' : 'secondary'} size="sm" onClick={toggleEditMode}>
+                  {editMode ? '수정 모드 종료' : '수정 모드'}
+                </Button>
+              )}
             </div>
           </div>
+
+          {/* 수정 모드: 선택 항목 일괄 변경 액션바 */}
+          {editMode && (
+            <div style={{
+              display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10,
+              padding: '10px 14px', marginBottom: 12,
+              background: 'var(--surface-secondary, #F5F7FA)', border: '1px solid var(--border)', borderRadius: 8,
+            }}>
+              <Button variant="secondary" size="sm" onClick={toggleSelectAll}>
+                {selectedIds.size === selectedItems.length && selectedItems.length > 0 ? '전체 해제' : '전체 선택'}
+              </Button>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{selectedIds.size}건 선택됨</span>
+              <select
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value ? Number(e.target.value) : '')}
+                disabled={selectedIds.size === 0}
+                style={{ padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}
+              >
+                <option value="">분류 변경 안 함</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name_ko}</option>)}
+              </select>
+              <select
+                value={bulkSourceType}
+                onChange={(e) => setBulkSourceType(e.target.value)}
+                disabled={selectedIds.size === 0}
+                style={{ padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}
+              >
+                <option value="">수행방식 변경 안 함</option>
+                {SOURCE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <Button
+                size="sm"
+                loading={bulkSaving}
+                disabled={selectedIds.size === 0 || (!bulkCategory && !bulkSourceType)}
+                onClick={handleBulkApply}
+              >
+                적용
+              </Button>
+            </div>
+          )}
 
           {/* 시험 항목 검색/필터 */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
@@ -374,7 +539,7 @@ export default function StandardMatrix() {
           </div>
 
           <Table
-            columns={itemColumns}
+            columns={displayItemColumns}
             data={selectedItems}
             rowKey={(r) => r.id}
             loading={loading}
