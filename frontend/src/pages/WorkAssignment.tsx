@@ -56,20 +56,25 @@ export default function WorkAssignment() {
     )
   }
 
+  // 취소된 프로젝트·시험 일정은 담당자의 실제 업무량이 아니므로 집계에서 제외한다.
+  // 시험 일정은 저장된 status가 아니라 display_status(compute_status 기준 재판정값)로 취소 여부를 판단한다.
+  const activeProjects = projects.filter((p) => p.status !== '취소')
+  const activeSchedules = schedules.filter((s) => String(s['display_status'] ?? s['status'] ?? '') !== '취소')
+
   const rows: AssigneeRow[] = [
     ...users.map((u) => ({
       user: u,
       standards: standards.filter((s) => s.assignee_id === u.id),
-      schedules: schedules.filter((s) => s['assignee_id'] === u.id),
+      schedules: activeSchedules.filter((s) => s['assignee_id'] === u.id),
       ncrs: ncrs.filter((n) => n.assignee_id === u.id),
-      projects: projects.filter((p) => p.assignee_id === u.id),
+      projects: activeProjects.filter((p) => p.assignee_id === u.id),
     })),
     {
       user: null,
       standards: standards.filter((s) => !s.assignee_id),
-      schedules: schedules.filter((s) => !s['assignee_id']),
+      schedules: activeSchedules.filter((s) => !s['assignee_id']),
       ncrs: ncrs.filter((n) => !n.assignee_id),
-      projects: projects.filter((p) => !p.assignee_id),
+      projects: activeProjects.filter((p) => !p.assignee_id),
     },
   ]
 
@@ -89,7 +94,7 @@ export default function WorkAssignment() {
     },
     {
       key: 'schedules', header: '시험 일정', width: 140,
-      render: (r) => <CountCell items={r.schedules} pending={r.schedules.filter((s) => String(s['status'] ?? '') !== '완료').length} />,
+      render: (r) => <CountCell items={r.schedules} pending={r.schedules.filter((s) => String(s['display_status'] ?? s['status'] ?? '') !== '완료').length} />,
     },
     {
       key: 'ncrs', header: 'NCR', width: 140,
@@ -161,7 +166,7 @@ function DetailPanel({ row }: { row: AssigneeRow }) {
         <Section title={`시험 일정 (${row.schedules.length})`}>
           {row.schedules.map((s, i) => (
             <Line key={i}>
-              {String(s['standard_name'] ?? s['test_type'] ?? '-')} <Badge label={String(s['status'] ?? '-')} />
+              {String(s['standard_name'] ?? s['test_type'] ?? '-')} <Badge label={String(s['display_status'] ?? s['status'] ?? '-')} />
             </Line>
           ))}
         </Section>

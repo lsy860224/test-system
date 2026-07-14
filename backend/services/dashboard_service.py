@@ -9,6 +9,7 @@ from models.schedule import TestSchedule
 from models.equipment import Equipment, EquipmentCalibration, EquipmentStandardMapping
 from models.vendor import VendorLab
 from models.sop import SOP
+from services.schedule_service import compute_status
 
 
 def get_summary(db: Session, year: int | None = None) -> dict:
@@ -70,9 +71,13 @@ def get_summary(db: Session, year: int | None = None) -> dict:
     else:
         expected = 0
 
-    planned = db.query(TestSchedule).filter(TestSchedule.status == "계획").count()
-    in_progress = db.query(TestSchedule).filter(TestSchedule.status.in_(["준비중", "진행중"])).count()
-    completed = db.query(TestSchedule).filter(TestSchedule.status == "완료").count()
+    # 저장된 status는 '취소'만 신뢰할 수 있으므로(schedule_service.compute_status 참고), 나머지 구간은
+    # 날짜 기준으로 다시 판정한다 — 그렇지 않으면 지연된 일정이 "계획/진행중"으로 잘못 집계된다.
+    display_statuses = [compute_status(s) for s in db.query(TestSchedule).all()]
+    planned = sum(1 for st in display_statuses if st == "준비중")
+    delayed = sum(1 for st in display_statuses if st == "지연")
+    in_progress = sum(1 for st in display_statuses if st == "진행중")
+    completed = sum(1 for st in display_statuses if st == "완료")
 
     # ── 장비 현황 ─────────────────────────────────────────
     eq_items = (
@@ -156,6 +161,7 @@ def get_summary(db: Session, year: int | None = None) -> dict:
         "schedules": {
             "expected": expected,
             "planned": planned,
+            "delayed": delayed,
             "in_progress": in_progress,
             "completed": completed,
         },

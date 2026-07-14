@@ -23,6 +23,7 @@ export interface DashboardSummary {
   schedules: {
     expected: number
     planned: number
+    delayed: number
     in_progress: number
     completed: number
   }

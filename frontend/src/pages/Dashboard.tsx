@@ -142,10 +142,11 @@ export default function Dashboard() {
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>· {year}년 기준</span>
           <a href="/schedule" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--au-blue)', textDecoration: 'none', fontWeight: 600 }}>상세 →</a>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12 }}>
           {[
             { label: '예정', desc: '프로젝트에 포함, 일정 미수립', count: sched?.expected ?? 0, color: '#A0AEC0', bg: '#F7FAFC' },
-            { label: '계획', desc: '시험 일정 확정', count: sched?.planned ?? 0, color: '#D69E2E', bg: '#FFFBEB' },
+            { label: '계획', desc: '일정 확정, 시작 예정일 이전', count: sched?.planned ?? 0, color: '#D69E2E', bg: '#FFFBEB' },
+            { label: '지연', desc: '시작 예정일 경과, 미착수', count: sched?.delayed ?? 0, color: '#E53E3E', bg: '#FFF5F5' },
             { label: '진행 중', desc: '현재 시험 수행 중', count: sched?.in_progress ?? 0, color: '#1565C0', bg: '#EBF4FF' },
             { label: '완료', desc: '시험 완료 (합격/불합격)', count: sched?.completed ?? 0, color: '#38A169', bg: '#F0FFF4' },
           ].map((col) => (

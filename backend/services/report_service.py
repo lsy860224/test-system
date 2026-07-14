@@ -176,8 +176,10 @@ def generate_quarterly_kpi(db: Session, year: int) -> dict:
             NCRReport.status == "완료", NCRReport.closed_date >= q_start, NCRReport.closed_date <= q_end,
         ).count()
 
+        # compute_status()와 동일한 기준(취소가 아니고 actual_end가 있으면 완료)으로 판정한다 —
+        # 저장된 status만 보면 실제로 종료됐지만 status가 갱신되지 않은 일정을 놓칠 수 있다.
         sched_completed = db.query(TestSchedule).filter(
-            TestSchedule.status == "완료", TestSchedule.actual_end >= q_start, TestSchedule.actual_end <= q_end,
+            TestSchedule.status != "취소", TestSchedule.actual_end >= q_start, TestSchedule.actual_end <= q_end,
         ).all()
         sched_pass = sum(1 for s in sched_completed if s.result == "합격")
         sched_pass_rate = round(sched_pass / len(sched_completed) * 100, 1) if sched_completed else None
