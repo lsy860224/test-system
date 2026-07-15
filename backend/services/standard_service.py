@@ -45,9 +45,12 @@ def create_item(db: Session, body: StandardItemCreate, created_by: int) -> Stand
 
 def update_item(db: Session, item_id: int, body: StandardItemUpdate, changed_by: int) -> StandardItem:
     item = get_item(db, item_id)
-    changes = _track_changes(item, body.model_dump(exclude_unset=True), changed_by)
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    changes = _track_changes(item, updates, changed_by)
+    for field, value in updates.items():
         setattr(item, field, value)
+    if "priority" in updates:
+        item.priority_score = _calc_priority(item.priority)
     item.updated_at = datetime.utcnow()
     for h in changes:
         db.add(h)
