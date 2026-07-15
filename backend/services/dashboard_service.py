@@ -95,7 +95,7 @@ def get_summary(db: Session, year: int | None = None) -> dict:
         # 최신 교정 만료일 계산
         valid = [c for c in eq.calibrations if c.next_due_date]
         if valid:
-            latest = max(valid, key=lambda c: c.next_due_date)
+            latest = max(valid, key=lambda c: c.calibration_date)
             days = (latest.next_due_date - today).days
             if days < 0:
                 cal_expired_count += 1

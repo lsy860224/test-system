@@ -33,7 +33,7 @@ def generate_gap_analysis(db: Session) -> dict:
         valid = [c for c in eq.calibrations if c.next_due_date]
         if not valid:
             continue
-        latest = max(valid, key=lambda c: c.next_due_date)
+        latest = max(valid, key=lambda c: c.calibration_date)
         days = (latest.next_due_date - today).days
         if days < 0:
             cal_expired.append({"id": eq.id, "name": eq.name, "next_due_date": latest.next_due_date.isoformat(), "days_to_expiry": days})

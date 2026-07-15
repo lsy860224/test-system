@@ -22,7 +22,7 @@ def _attach_expiry(item: Equipment) -> Equipment:
     """최신 교정 만료일 및 D-Day 계산 (calibrations가 로드된 상태에서 호출)"""
     valid = [c for c in item.calibrations if c.next_due_date]
     if valid:
-        latest = max(valid, key=lambda c: c.next_due_date)
+        latest = max(valid, key=lambda c: c.calibration_date)
         item.latest_expiry = latest.next_due_date
         item.days_to_expiry = (latest.next_due_date - date.today()).days
     else:
