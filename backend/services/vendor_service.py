@@ -194,7 +194,11 @@ def update_order(
         if not body.project_id:
             raise HTTPException(status_code=400, detail="시험 일정 연계는 프로젝트 발주에서만 가능합니다")
         _validate_schedule_project(db, body.schedule_id, body.project_id)
-    for k, v in body.model_dump().items():
+    # exclude_unset: VendorForm.tsx의 발주 수정 폼은 single_test_request_id 필드를 모른다.
+    # 전체 model_dump()를 쓰면 그 필드가 요청 바디에 없다는 이유로 기본값 None이 덮어써져,
+    # M10 단건 시험 요청에서 등록된 발주(single_test_request_id 연계)를 여기서 수정하는 순간
+    # 그 연계가 조용히 끊어진다.
+    for k, v in body.model_dump(exclude_unset=True).items():
         setattr(record, k, v)
     db.commit()
     db.refresh(record)
