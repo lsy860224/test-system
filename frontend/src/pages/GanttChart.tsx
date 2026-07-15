@@ -27,15 +27,23 @@ export default function GanttChart({ projectId }: { projectId?: number }) {
 
   if (loading) return <div style={{ color: 'var(--text-muted)', padding: 40 }}>로딩 중...</div>
 
-  const allSchedules = (data?.projects ?? []).flatMap((p) => p.schedules)
-  if (allSchedules.length === 0) {
-    return <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>표시할 일정이 없습니다. (진행 중 프로젝트에 등록된 시험 일정 기준)</div>
+  const projects = data?.projects ?? []
+  if (projects.length === 0) {
+    return <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>표시할 진행 중 프로젝트가 없습니다.</div>
   }
 
+  const allSchedules = projects.flatMap((p) => p.schedules)
+
   // ── 날짜 범위 계산 (계획+실적 전부 포함, 앞뒤 7일 여백) ──
+  // 일정이 하나도 없으면(규격만 연결하고 아직 일정을 등록하지 않은 경우) 오늘 기준 앞뒤 30일을 기본 범위로 쓴다
   const allDates = allSchedules.flatMap((s) => [s.planned_start, s.planned_end, s.actual_start, s.actual_end].filter(Boolean) as string[])
-  const minDate = new Date(Math.min(...allDates.map((d) => new Date(d).getTime())) - 7 * DAY_MS)
-  const maxDate = new Date(Math.max(...allDates.map((d) => new Date(d).getTime())) + 7 * DAY_MS)
+  const today = new Date()
+  const minDate = allDates.length > 0
+    ? new Date(Math.min(...allDates.map((d) => new Date(d).getTime())) - 7 * DAY_MS)
+    : new Date(today.getTime() - 30 * DAY_MS)
+  const maxDate = allDates.length > 0
+    ? new Date(Math.max(...allDates.map((d) => new Date(d).getTime())) + 7 * DAY_MS)
+    : new Date(today.getTime() + 30 * DAY_MS)
   const totalDays = Math.max(1, Math.round((maxDate.getTime() - minDate.getTime()) / DAY_MS))
   const totalW = totalDays * PX_PER_DAY
   const xOf = (dateStr: string) => Math.round((new Date(dateStr).getTime() - minDate.getTime()) / DAY_MS) * PX_PER_DAY
@@ -58,7 +66,7 @@ export default function GanttChart({ projectId }: { projectId?: number }) {
   // ── 행 목록 (프로젝트 헤더 + 일정 행) ──────────────────
   type Row = { kind: 'project'; label: string } | { kind: 'schedule'; s: GanttSchedule }
   const rows: Row[] = []
-  for (const p of data!.projects) {
+  for (const p of projects) {
     rows.push({ kind: 'project', label: `${p.project_code ? p.project_code + ' · ' : ''}${p.project_name} (${p.phase})` })
     for (const s of p.schedules) rows.push({ kind: 'schedule', s })
   }

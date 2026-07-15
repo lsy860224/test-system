@@ -30,7 +30,7 @@ def create_project(body: ProjectCreate, db: Session = Depends(get_db), current_u
 
 @router.get("/{project_id}", response_model=ProjectOut)
 def get_project(project_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
-    return project_service.get_project(db, project_id)
+    return project_service.get_project_out(db, project_id)
 
 @router.put("/{project_id}", response_model=ProjectOut)
 def update_project(project_id: int, body: ProjectUpdate, db: Session = Depends(get_db), _=Depends(require_staff)):

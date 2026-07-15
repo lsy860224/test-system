@@ -212,7 +212,7 @@ def get_gantt_data(db: Session, project_id: int | None, status: str | None) -> d
                 "phase": p.phase,
                 "schedules": by_project.get(p.id, []),
             }
-            for p in projects if by_project.get(p.id)
+            for p in projects
         ]
     }
 

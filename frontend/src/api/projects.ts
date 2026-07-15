@@ -18,6 +18,7 @@ export interface ProjectItem {
   phase: string
   status: string
   progress_pct: number
+  standard_item_count: number
   target_date?: string
   customer_id: number
   assignee_id?: number

@@ -69,12 +69,16 @@ export default function ProjectOverview() {
     {
       key: 'progress_pct', header: '진행률', width: 130, sortable: true,
       render: (r) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${r.progress_pct}%`, background: 'var(--au-blue)', borderRadius: 3 }} />
+        r.standard_item_count === 0 ? (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>대상 시험 항목 없음</span>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${r.progress_pct}%`, background: 'var(--au-blue)', borderRadius: 3 }} />
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 32 }}>{r.progress_pct}%</span>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 32 }}>{r.progress_pct}%</span>
-        </div>
+        )
       ),
     },
     { key: 'target_date', header: '목표 완료', width: 110, sortable: true, render: (r) => r.target_date ?? '-' },

@@ -13,6 +13,7 @@ from models.project import Project
 from models.customer import Customer
 from models.item import Item
 from models.user import User
+from services.project_service import compute_project_progress
 
 HDR_FILL = PatternFill("solid", fgColor="2B2F82")
 HDR_FONT = Font(color="FFFFFF", bold=True, size=11)
@@ -118,12 +119,13 @@ def generate_full_export(db: Session) -> bytes:
     cust_names = {c.id: c.name for c in db.query(Customer).all()}
     item_names = {i.id: i.name for i in db.query(Item).all()}
     projects = db.query(Project).order_by(Project.project_code).all()
+    progress_map = compute_project_progress(db, [p.id for p in projects])
     _write_sheet(
         wb, "프로젝트",
         ["프로젝트 코드", "프로젝트명", "고객사", "아이템", "단계", "상태", "시작일", "목표일", "완료일", "진행률"],
         [[
             p.project_code, p.name, cust_names.get(p.customer_id, ""), item_names.get(p.item_id, ""), p.phase, p.status,
-            p.start_date, p.target_date, p.actual_date, p.progress_pct,
+            p.start_date, p.target_date, p.actual_date, progress_map.get(p.id, 0),
         ] for p in projects],
         [16, 24, 18, 20, 10, 8, 12, 12, 12, 10],
     )

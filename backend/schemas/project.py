@@ -56,6 +56,7 @@ class ProjectListOut(BaseModel):
     phase: str
     status: str
     progress_pct: int
+    standard_item_count: int = 0
     target_date: Optional[date]
     customer_id: int
     assignee_id: Optional[int] = None
