@@ -95,12 +95,21 @@ def create_sop(db: Session, body: SOPCreate, current_user: User) -> SOP:
 def update_sop(db: Session, sop_id: int, body: SOPUpdate, current_user: User) -> SOP:
     item = get_sop(db, sop_id)
     old_status = item.status
+    old_doc_type = item.doc_type
     if body.status != old_status:
         _check_status_permission(body.status, current_user)
     for k, v in body.model_dump().items():
         if k == "owner":
             continue  # 작성자는 최초 등록 시점 값으로 고정 — 수정 불가
         setattr(item, k, v)
+    if body.doc_type != old_doc_type:
+        # 문서 종류를 바꾸면 프론트는 새 종류에 맞는 연동 탭(규격 항목/장비)만 저장하고
+        # 반대쪽 탭은 화면에서 사라진다. 반대쪽 M2M 매핑을 그대로 두면 고아 레코드로 남아
+        # SOP 커버리지 집계(sop_coverage)에 계속 잘못 반영되므로 여기서 정리한다.
+        if body.doc_type == "장비절차서":
+            db.execute(delete(sop_standard_items).where(sop_standard_items.c.sop_id == sop_id))
+        else:
+            db.execute(delete(sop_equipment).where(sop_equipment.c.sop_id == sop_id))
     db.commit()
     db.refresh(item)
     _notify_approver_if_submitted(db, item, old_status)
