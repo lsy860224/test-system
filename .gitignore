@@ -8,3 +8,4 @@ frontend/dist/
 *.pyc
 backend/.env
 *.log
+.claude/settings.local.json
