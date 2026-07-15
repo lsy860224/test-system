@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { type SortState, sortByKey } from '@/utils/sort'
+import { getErrorMessage } from '@/utils/errorMessage'
 
 export const FETCH_SIZE = 1000
 export const PAGE_SIZE = 20
@@ -17,7 +18,10 @@ export function useListPagination<T extends object>(initialSort: SortState, page
 
   const runLoad = (fetcher: () => Promise<{ items: T[]; total: number }>) => {
     setLoading(true)
-    return fetcher().then((r) => { setItems(r.items); setTotal(r.total) }).finally(() => setLoading(false))
+    return fetcher()
+      .then((r) => { setItems(r.items); setTotal(r.total) })
+      .catch((err) => { alert(getErrorMessage(err, '목록을 불러오는 중 오류가 발생했습니다')) })
+      .finally(() => setLoading(false))
   }
 
   return { items, total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad }
