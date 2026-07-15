@@ -18,7 +18,7 @@ class StandardItemBase(BaseModel):
     category_id: Optional[int] = None
     test_condition_summary: Optional[str] = None
     test_condition_detail: Optional[str] = None
-    source_type: str = "검토중"
+    source_type: str = "외주"
     priority: str = "Med"
     dv_target_date: Optional[date] = None
     dv_actual_date: Optional[date] = None

@@ -11,7 +11,7 @@ class NCRReport(Base):
     standard_item_id = Column(Integer, ForeignKey("standard_items.id"), nullable=True)
     test_schedule_id = Column(Integer, ForeignKey("test_schedules.id"), nullable=True)
     part_name        = Column(String(200), nullable=False)
-    test_section     = Column(String(100))      # §6.1.1 단락보호
+    test_section     = Column(String(100))      # 6.1.1 단락보호
     issue_summary    = Column(String(300), nullable=False)
     issue_detail     = Column(Text)
     severity         = Column(String(5), nullable=False)   # High | Med | Low

@@ -22,12 +22,12 @@ class StandardItem(Base):
     standard_no             = Column(String(50), nullable=True)    # ISO 16750-2, ES 60100-NE30
     standard_name           = Column(String(200), nullable=True)   # 자동차 전장부품 전기적 환경 하중 및 시험
     revision_no             = Column(String(20), nullable=True)    # Rev.3, 2022-01
-    standard_code           = Column(String(20), nullable=False, index=True)   # §6.1.1
+    standard_code           = Column(String(20), nullable=False, index=True)   # 6.1.1
     name                    = Column(String(200), nullable=False)
     category_id             = Column(Integer, ForeignKey("standard_categories.id"))
     test_condition_summary  = Column(String(200))
     test_condition_detail   = Column(Text)                    # JSON
-    source_type             = Column(String(10), default="검토중")  # 자체 | 외주 | 검토중
+    source_type             = Column(String(10), default="외주")  # 자체 | 외주 | 검토중
     priority                = Column(String(5), default="Med")   # High | Med | Low
     priority_score          = Column(Integer, default=50)
     dv_target_date          = Column(Date, nullable=True)
