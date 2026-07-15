@@ -54,8 +54,17 @@ def create_ncr(db: Session, body: NCRCreate, created_by: int) -> NCRReport:
 
 def update_ncr(db: Session, ncr_id: int, body: NCRUpdate) -> NCRReport:
     ncr = get_ncr(db, ncr_id)
+    old_status = ncr.status
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(ncr, field, value)
+    # NCRForm.tsx는 상태 변경도 이 PUT 경로로 저장한다(PATCH /status는 프론트에서 호출되지 않는
+    # 죽은 경로) — 그래서 여기서 종결일을 세팅하지 않으면 "완료" 처리된 NCR도 closed_date가
+    # 영구히 None으로 남아 대시보드 월별 트렌드·분기 KPI의 완료 집계가 항상 0이 된다.
+    if ncr.status != old_status:
+        if ncr.status == "완료":
+            ncr.closed_date = datetime.utcnow().date()
+        elif old_status == "완료":
+            ncr.closed_date = None  # 재오픈 시 더 이상 완료 상태가 아니므로 종결일도 초기화
     ncr.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(ncr)
