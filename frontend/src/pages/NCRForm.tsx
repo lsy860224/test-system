@@ -6,7 +6,9 @@ import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { useFormState } from '@/hooks/useFormState'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -84,6 +86,12 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
   const [comments, setComments] = useState<NCRComment[]>([])
   const [newComment, setNewComment] = useState('')
   const [savingComment, setSavingComment] = useState(false)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
+    { form, form8d, pendingFilesCount: pendingFiles.length },
+    !loading,
+  )
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => {
     standardApi.list({ size: 500 }).then((r) => setStandardItems(r.items))
@@ -209,6 +217,7 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
         setPendingFiles([])
       }
 
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -235,7 +244,7 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
   }
 
   return (
-    <Overlay width={720} onClose={onClose}>
+    <Overlay width={720} onClose={handleClose}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 14 }}>
@@ -245,7 +254,7 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
               부적합 보고서(Non-Conformance Report) — NCR 번호는 자동 생성됩니다.
             </p>
           </div>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
           {TABS.map((t) => (
@@ -434,13 +443,17 @@ export default function NCRForm({ ncrId, initialValues, onClose, onSaved }: Prop
         <div style={{ flex: 1 }} />
         {tab !== '댓글' && (
           <>
-            <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+            <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
             <Button size="sm" onClick={handleSave} loading={saving}>
               {isEdit ? '수정 저장' : '등록'}
             </Button>
           </>
         )}
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </Overlay>
   )
 }

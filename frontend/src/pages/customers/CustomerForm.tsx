@@ -2,7 +2,9 @@ import React, { type ReactNode, type CSSProperties, useEffect, useRef, useState 
 import { customersApi, type Customer, type Contact, type Attachment } from '@/api/customers'
 import Button from '@/components/ui/Button'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { useFormState } from '@/hooks/useFormState'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -36,6 +38,12 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
   const [savedCustomerId, setSavedCustomerId] = useState<number | null>(customerId)
   const [isDragOver, setIsDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
+    { info, contacts, pendingFilesCount: pendingFiles.length },
+    !loading,
+  )
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => {
     if (!isEdit || !customerId) return
@@ -93,6 +101,7 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
       for (const { file, docType } of pendingFiles) {
         await customersApi.uploadAttachment(cid!, file, docType)
       }
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -118,12 +127,12 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
   if (loading) return <Modal onClose={onClose} standalone={standalone}><div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div></Modal>
 
   return (
-    <Modal onClose={onClose} standalone={standalone}>
+    <Modal onClose={handleClose} standalone={standalone}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, flex: 1 }}>{isEdit ? '업체 수정' : '신규 업체 등록'}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
           {(['info', 'contacts', 'attachments'] as Tab[]).map((t) => (
@@ -287,11 +296,15 @@ export default function CustomerForm({ customerId, onClose, onSaved, standalone 
           <Button variant="danger" size="sm" onClick={handleDeactivate}>비활성화</Button>
         )}
         <div style={{ flex: 1 }} />
-        <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+        <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
         <Button size="sm" onClick={handleSave} loading={saving}>
           {isEdit ? '수정 저장' : '등록'}
         </Button>
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </Modal>
   )
 }

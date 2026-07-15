@@ -1,7 +1,8 @@
 import React, { type CSSProperties } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useUnsavedGuardStore } from '@/stores/unsavedGuardStore'
 import { useState } from 'react'
 
 interface MenuItem {
@@ -58,6 +59,9 @@ export default function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
   const role = useAuthStore((s) => s.user?.role)
   const location = useLocation()
+  const navigate = useNavigate()
+  const dirty = useUnsavedGuardStore((s) => s.isDirty)
+  const guard = useUnsavedGuardStore((s) => s.guard)
   const [expanded, setExpanded] = useState<string[]>([])
   const menu = MENU.filter((item) => !item.rolesOnly || (role && item.rolesOnly.includes(role)))
 
@@ -67,6 +71,15 @@ export default function Sidebar() {
   const isActive = (path: string) => location.pathname === path
   const isParentActive = (item: MenuItem) =>
     item.children?.some((c) => location.pathname.startsWith(c.path)) ?? false
+
+  // 저장하지 않은 변경사항이 있는 폼이 열려 있으면, 다른 메뉴로 이동하기 전에 먼저 확인창을 띄운다
+  const handleNavClick = (e: React.MouseEvent, path: string) => {
+    if (isActive(path)) { e.preventDefault(); window.location.reload(); return }
+    if (dirty && guard) {
+      e.preventDefault()
+      guard(() => navigate(path))
+    }
+  }
 
   return (
     <aside className="no-print" style={{
@@ -127,12 +140,7 @@ export default function Sidebar() {
                       key={child.key}
                       to={child.path}
                       style={subNavStyle(isActive(child.path))}
-                      onClick={(e) => {
-                        if (isActive(child.path)) {
-                          e.preventDefault()
-                          window.location.reload()
-                        }
-                      }}
+                      onClick={(e) => handleNavClick(e, child.path)}
                     >
                       <span style={{ marginLeft: 8, marginRight: 6, opacity: 0.4 }}>│</span>
                       {child.label}
@@ -146,12 +154,7 @@ export default function Sidebar() {
               key={item.key}
               to={item.path!}
               style={({ isActive }) => navStyle(isActive)}
-              onClick={(e) => {
-                if (isActive(item.path!)) {
-                  e.preventDefault()
-                  window.location.reload()
-                }
-              }}
+              onClick={(e) => handleNavClick(e, item.path!)}
             >
               <span>{item.icon}</span>
               {!collapsed && (

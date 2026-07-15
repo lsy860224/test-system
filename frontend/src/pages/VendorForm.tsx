@@ -8,7 +8,9 @@ import { scheduleApi } from '@/api/schedules'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { useFormState } from '@/hooks/useFormState'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -71,6 +73,9 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   const [projects, setProjects] = useState<ProjectItem[]>([])
   const [schedules, setSchedules] = useState<ScheduleOption[]>([])
 
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(form, !loading)
+  const handleClose = () => requestClose(onClose)
+
   useEffect(() => {
     projectsApi.list({ size: 200 }).then((r) => setProjects(r.items))
   }, [])
@@ -114,6 +119,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
       }
       if (isEdit && vendorId) { await vendorApi.update(vendorId, payload) }
       else { await vendorApi.create(payload) }
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -235,7 +241,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
   }
 
   return (
-    <Overlay width={800} onClose={onClose}>
+    <Overlay width={800} onClose={handleClose}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -247,7 +253,7 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
               {isEdit ? form.name : '새 외주 시험소를 등록합니다'}
             </p>
           </div>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
           {TABS.map((t) => (
@@ -546,13 +552,17 @@ export default function VendorForm({ vendorId, onClose, onSaved, allowedTabs }: 
           </Button>
         )}
         <div style={{ flex: 1 }} />
-        <Button variant="secondary" size="sm" onClick={onClose}>닫기</Button>
+        <Button variant="secondary" size="sm" onClick={handleClose}>닫기</Button>
         {tab === '기본정보' && (
           <Button size="sm" onClick={handleSave} loading={saving}>
             {isEdit ? '수정 저장' : '등록'}
           </Button>
         )}
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </Overlay>
   )
 }

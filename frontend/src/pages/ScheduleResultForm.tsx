@@ -2,6 +2,8 @@ import React, { type CSSProperties, useEffect, useState } from 'react'
 import { scheduleApi } from '@/api/schedules'
 import Button from '@/components/ui/Button'
 import { FormField as F } from '@/components/ui/FormField'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -21,6 +23,12 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
   const [isEdit, setIsEdit] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
+    { result, actualEnd, dataPath },
+    !loading,
+  )
+  const handleClose = () => requestClose(onClose)
+
   useEffect(() => {
     scheduleApi.get(scheduleId).then((item: Record<string, unknown>) => {
       if (item.result) {
@@ -38,6 +46,7 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
     setSaving(true)
     try {
       await scheduleApi.recordResult(scheduleId, result, actualEnd, dataPath.trim())
+      markClean()
       onSaved(result)
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -49,7 +58,7 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}
     >
       <div style={{ background: 'var(--surface)', borderRadius: 16, width: 440, maxWidth: '95vw', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
@@ -62,7 +71,7 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
                 : "결과를 저장하면 일정 상태가 '완료'로 바뀝니다."}
             </p>
           </div>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         {loading ? (
           <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
@@ -88,12 +97,16 @@ export default function ScheduleResultForm({ scheduleId, onClose, onSaved }: Pro
               )}
             </div>
             <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+              <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
               <Button size="sm" onClick={handleSave} loading={saving}>저장</Button>
             </div>
           </>
         )}
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </div>
   )
 }

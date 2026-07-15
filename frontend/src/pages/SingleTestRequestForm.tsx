@@ -13,9 +13,11 @@ import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 import { useFormState } from '@/hooks/useFormState'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 
 interface Props {
   requestId: number | null
@@ -85,6 +87,12 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
   // 전달 이력 탭
   const [deliveryForm, setDeliveryForm] = useState({ delivered_at: today(), delivered_to: '', method: '이메일', notes: '' })
   const [savingDelivery, setSavingDelivery] = useState(false)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
+    { form, pendingFilesCount: pendingFiles.length },
+    !loading,
+  )
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => {
     standardApi.list({ size: 500 }).then((r) => setStandardItems(r.items))
@@ -260,6 +268,7 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
         setPendingFiles([])
       }
 
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -289,7 +298,7 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
   }
 
   return (
-    <Overlay width={760} onClose={onClose}>
+    <Overlay width={760} onClose={handleClose}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 14 }}>
@@ -302,7 +311,7 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
               프로젝트·규격과 무관한 타부서 의뢰 단건 시험. 요청번호는 자동 생성됩니다.
             </p>
           </div>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
           {TABS.map((t) => (
@@ -699,7 +708,7 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
         <div style={{ flex: 1 }} />
         {tab === '기본정보' && (
           <>
-            <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+            <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
             {!locked && (
               <Button size="sm" onClick={handleSave} loading={saving}>{isEdit ? '수정 저장' : '등록'}</Button>
             )}
@@ -709,6 +718,10 @@ export default function SingleTestRequestForm({ requestId, onClose, onSaved }: P
           <Button size="sm" onClick={handleSave} loading={saving}>파일 업로드</Button>
         )}
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </Overlay>
   )
 }

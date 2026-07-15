@@ -7,7 +7,9 @@ import { usersApi, type AppUser } from '@/api/users'
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { useFormState } from '@/hooks/useFormState'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 
 interface Props {
@@ -45,6 +47,9 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(form, !loading)
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => {
     projectsApi.list({ size: 200, status: '활성' }).then((r) => setProjects(r.items))
@@ -107,6 +112,7 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
       } else {
         await scheduleApi.create(payload)
       }
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -145,7 +151,7 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
   }
 
   return (
-    <Overlay width={680} onClose={onClose}>
+    <Overlay width={680} onClose={handleClose}>
       {/* header */}
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start' }}>
         <div>
@@ -154,7 +160,7 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
             프로젝트와 규격 항목을 선택하면 해당 프로젝트의 등록 항목만 표시됩니다.
           </p>
         </div>
-        <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+        <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
       </div>
 
       {/* body */}
@@ -231,11 +237,15 @@ export default function ScheduleForm({ scheduleId, initialProjectId, initialStan
           </Button>
         )}
         <div style={{ flex: 1 }} />
-        <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+        <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
         <Button size="sm" onClick={handleSave} loading={saving}>
           {isEdit ? '수정 저장' : '등록'}
         </Button>
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </Overlay>
   )
 }

@@ -3,7 +3,9 @@ import { standardApi, type StandardItem, type StandardCategory } from '@/api/sta
 import Button from '@/components/ui/Button'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { useFormState } from '@/hooks/useFormState'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -60,6 +62,12 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   const [copyLoading, setCopyLoading] = useState(!!copyFromStdNo && !isEdit)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
+    isEdit ? form : { header, rows },
+    !(loading || copyLoading),
+  )
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => { standardApi.categories().then(setCategories) }, [])
 
@@ -149,6 +157,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
           notes: form.notes || undefined,
           source_type: form.source_type,
         })
+        markClean()
         onSaved()
       } catch (err: unknown) {
         const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -175,6 +184,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
             })
           )
         )
+        markClean()
         onSaved()
       } catch (err: unknown) {
         const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -197,7 +207,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   // ── 수정 모드 ───────────────────────────────────────
   if (isEdit) {
     return (
-      <Overlay onClose={onClose} width={640}>
+      <Overlay onClose={handleClose} width={640}>
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>규격 항목 수정</h3>
@@ -205,7 +215,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
               규격 항목은 시험 규격 코드 DB입니다. 세부 일정(DV/PV 목표일)은 프로젝트/시험일정에서 관리합니다.
             </p>
           </div>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
 
         <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(80vh - 150px)' }}>
@@ -254,9 +264,13 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
             삭제
           </Button>
           <div style={{ flex: 1 }} />
-          <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+          <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
           <Button size="sm" onClick={handleSave} loading={saving}>수정 저장</Button>
         </div>
+
+        {confirmOpen && (
+          <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+        )}
       </Overlay>
     )
   }
@@ -265,7 +279,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
   const validCount = rows.filter((r) => r.standard_code.trim() && r.name.trim()).length
 
   return (
-    <Overlay onClose={onClose} width={900}>
+    <Overlay onClose={handleClose} width={900}>
       {/* 헤더 */}
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
         <div>
@@ -280,7 +294,7 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
               : '규격 정보를 입력 후 항목을 추가하세요. 한 번에 여러 항목을 등록할 수 있습니다.'}
           </p>
         </div>
-        <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+        <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
       </div>
 
       <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(85vh - 150px)' }}>
@@ -407,11 +421,15 @@ export default function StandardItemForm({ itemId, onClose, onSaved, copyFromStd
           }
         </span>
         <div style={{ flex: 1 }} />
-        <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+        <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
         <Button size="sm" onClick={handleSave} loading={saving} disabled={validCount === 0}>
           등록 ({validCount}건)
         </Button>
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </Overlay>
   )
 }

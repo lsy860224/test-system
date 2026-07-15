@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -51,6 +53,12 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
   const [standardSearch, setStandardSearch] = useState('')
   const [standardCatFilter, setStandardCatFilter] = useState<number | ''>('')
   const [standardLoading, setStandardLoading] = useState(false)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
+    { form, selectedIds: [...selectedIds].sort(), standardNotes: [...standardNotes.entries()] },
+    !loading,
+  )
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => {
     customersApi.list({ size: 200 }).then((r) => setCustomers(r.items))
@@ -158,6 +166,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         setStandardLoading(false)
       }
 
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -191,12 +200,12 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
   }
 
   return (
-    <Overlay onClose={onClose} standalone={standalone} width={720}>
+    <Overlay onClose={handleClose} standalone={standalone} width={720}>
       {/* header */}
       <div style={{ padding: '20px 24px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, flex: 1 }}>{isEdit ? '프로젝트 수정' : '프로젝트 등록'}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
           {([['info', '기본 정보'], ['standards', `규격 항목 (${selectedIds.size})`]] as [Tab, string][]).map(([t, label]) => (
@@ -368,11 +377,20 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         {(saving || standardLoading) && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>저장 중...</span>
         )}
-        <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+        <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
         <Button size="sm" onClick={handleSave} loading={saving || standardLoading}>
           {isEdit ? '수정 저장' : '등록'}
         </Button>
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog
+          saving={saving || standardLoading}
+          onSave={handleSave}
+          onDiscard={confirmDiscard}
+          onCancel={confirmCancel}
+        />
+      )}
     </Overlay>
   )
 }

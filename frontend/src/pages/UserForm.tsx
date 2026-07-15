@@ -2,6 +2,8 @@ import React, { type CSSProperties, useEffect, useState } from 'react'
 import { usersApi, USER_ROLES, type AppUser } from '@/api/users'
 import Button from '@/components/ui/Button'
 import { FormField as F } from '@/components/ui/FormField'
+import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
+import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
 import { getErrorMessage } from '@/utils/errorMessage'
 import { validateRequired } from '@/utils/validateRequired'
 
@@ -18,6 +20,9 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
   const [name, setName] = useState(user?.name ?? '')
   const [role, setRole] = useState(user?.role ?? '팀원')
   const [saving, setSaving] = useState(false)
+
+  const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard({ username, password, name, role })
+  const handleClose = () => requestClose(onClose)
 
   useEffect(() => {
     setUsername(user?.username ?? '')
@@ -40,6 +45,7 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
       } else {
         await usersApi.create({ username: username.trim(), password, name: name.trim(), role })
       }
+      markClean()
       onSaved()
     } catch (err: unknown) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
@@ -51,13 +57,13 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
     >
       <div style={{ background: 'var(--surface)', borderRadius: 16, width: 440, maxWidth: '95vw', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start' }}>
           <h3 style={{ fontSize: 16, fontWeight: 700 }}>{isEdit ? '사용자 계정 수정' : '사용자 계정 등록'}</h3>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={handleClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <F label="아이디 *">
@@ -76,10 +82,14 @@ export default function UserForm({ user, onClose, onSaved }: Props) {
           </F>
         </div>
         <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button variant="secondary" size="sm" onClick={onClose}>취소</Button>
+          <Button variant="secondary" size="sm" onClick={handleClose}>취소</Button>
           <Button size="sm" onClick={handleSave} loading={saving}>{isEdit ? '수정 저장' : '등록'}</Button>
         </div>
       </div>
+
+      {confirmOpen && (
+        <UnsavedChangesDialog saving={saving} onSave={handleSave} onDiscard={confirmDiscard} onCancel={confirmCancel} />
+      )}
     </div>
   )
 }
