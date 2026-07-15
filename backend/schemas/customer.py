@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
 from typing import Optional
 
@@ -38,6 +38,13 @@ class CustomerBase(BaseModel):
     color_hex: str = "#2B2F82"
     partner_code: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("business_reg_number", mode="before")
+    @classmethod
+    def blank_business_reg_number_to_none(cls, v):
+        # business_reg_number는 DB에서 unique=True — 빈 문자열이 그대로 들어가면
+        # 미입력 업체가 2곳 이상일 때 UNIQUE 제약 위반으로 저장이 실패한다.
+        return v or None
 
 class CustomerCreate(CustomerBase):
     contacts: list[ContactCreate] = []
