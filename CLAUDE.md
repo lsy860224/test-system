@@ -196,3 +196,33 @@ P2 개발 기능 정의서(M01~M08) 전 항목 완료. M09·M10 별도 요청으
 **9개 Tester Agent(§7)와는 다른 계층이다.** Tester Agent는 "기능이 동작하는가"를 보고, `deploy-readiness`(`.claude/agents/deploy-readiness.md`)는 그 위에서 "dev에서 검증이 끝난 이 상태를 실제 운영 DB(`au_test_system_prod.db`)에 적용해도 안전한가"만 감사한다. 판단 기준은 `DEPLOY_CHECKLIST.md`이며, `backend/scripts/preflight_check.py`를 prod 조건으로 직접 실행해 ENVIRONMENT/DATABASE_URL/SECRET_KEY를 검증하고, 스키마 변경 시 백업 여부·CORS·프런트 운영 빌드(`tsc`) 통과 같은 수동 항목은 사용자에게 확인을 요청한다. (2026-07-10부터 dev=8000/5173, 운영=8001/4173으로 포트가 분리돼 동시 기동이 가능해졌다 — 더 이상 "dev부터 내려야 한다"는 전제가 아니다.)
 
 **규칙: "배포해도 되는지 확인해줘", "운영 적용 전 검증", "start-prod 돌려도 되는지" 요청 시 `deploy-readiness` Agent를 실행한다.** 이 Agent는 코드를 고치지 않고, `start-prod.bat`을 대신 실행하지도 않는다 — PASS/FAIL/BLOCK 감사 결과만 보고한다. 일반적으로 배포 전 순서는: ① 변경 범위에 해당하는 Tester Agent(§7)로 기능 검증 → ② `deploy-readiness`로 환경/설정 감사 → ③ 사용자가 직접 dev 서버를 내리고 `start-prod.bat` 실행.
+
+---
+
+## 9. Sub-Agent·슬래시커맨드 이관 상태 (2026-07-15)
+
+작업 루트를 `au-test-system/`로도 쓸 수 있도록, 상위 폴더 `.claude/`에만 있던 파일들을 이 폴더의 `.claude/`에도 **복사**해뒀다(이동 아님 — 사용자 확정, 상위 루트의 도메인 Agent 라우팅 체계를 그대로 유지하기 위해).
+
+- `.claude/agents/`: Tester Agent 9개(`tester-*.md`) + `deploy-readiness.md` + `guardrail-auditor.md` + `code-quality-auditor.md` — §7·§8에서 설명한 검증/배포 게이트 Agent 전부
+- `.claude/commands/`: 슬래시커맨드 9개(`es-add`, `equipment-check`, `sop-draft`, `risk-review`, `8d-report`, `msa-plan`, `gap-report`, `exec-1pager`, `vendor-quote`) — 상위 CLAUDE.md §4의 도메인 Agent(`@es-matrix-agent` 등)를 호출하는 persona 정의
+- `.claude/launch.json`: dev 서버 기동 설정(절대경로라 루트가 어디든 동일하게 동작)
+
+**⚠️ 복사본이라 원본과 별개로 존재한다 — 드리프트 주의.** Agent·커맨드 정의를 고칠 때는 상위 `../.claude/`와 이 폴더의 `.claude/` 중 하나만 고치고 잊으면 두 루트에서 동작이 달라진다. 정의 내용을 변경하는 작업이면 양쪽 다 같이 고치거나, 최소한 어느 쪽을 고쳤는지 인지하고 있을 것. `.claude/settings.local.json`(세션별 권한 승인 기록)은 이미 삭제된 레거시 경로(`03_임원보고` 등) 참조가 대부분이라 이관하지 않았다.
+
+## 10. 버전 관리 (git) 현황
+
+`au-test-system/`는 실제 git 저장소다(`master` 브랜치, 의미 단위 커밋 히스토리 보유). `.gitignore`가 `venv/`·`*.db`·`node_modules/`·`.env`·`*.log`를 제외해 바이너리·시크릿·로컬 산출물이 커밋에 섞이지 않는다. 상위 폴더(`E:\03. Job\00. Claude Code`)는 git 저장소가 아니므로, git 이력이 필요한 작업은 반드시 이 폴더 안에서 진행한다.
+
+**남은 리스크 둘:**
+- **원격 저장소 없음** — `git remote -v`가 비어 있다. 로컬 히스토리만 있어 코드 롤백은 가능하지만, 이 PC의 디스크 장애·도난·손상 시에는 커밋 이력을 포함해 전부 유실된다. 재해 복구 관점에서 원격(GitHub 프라이빗 등) 연결을 검토할 것.
+- **미커밋 변경 방치** — 2026-07-15 확인 시점에 25개 파일 수정 + 3개 신규 파일이 스테이징 전 상태로 남아 있었다(스냅샷이므로 시점 지나면 달라질 수 있음). git이 있다는 것과 안전망으로 실제 쓰이고 있다는 건 다른 얘기다 — 작업 단위가 끝나면 커밋하는 습관이 없으면 위 원격 부재 문제와 겹쳐 실질적으로 무방비 구간이 생긴다.
+
+## 11. DB 아키텍처 로드맵 (SQLite → PostgreSQL 검토, 2026-07-15)
+
+현재 SQLite(개발/운영 물리 분리, §1 참고)는 로컬 단일 PC·소수 인원 운영이라는 지금 규모에는 문제가 없다. 다만 양산 전환으로 동시 접속 인원이 늘거나 사내망 외부 접속을 허용하는 시점에는 SQLite의 동시 쓰기 제약이 실제 장애로 나타날 수 있어 PostgreSQL 전환을 검토 대상으로 남긴다.
+
+- **권장 DB**: PostgreSQL, 로컬/사내 서버 설치 (클라우드 관리형 DB는 KOLAS 성적서·NCR/8D·벤더 단가 등 영업비밀급 데이터를 사내망 밖으로 내보내는 셈이라 비권장). SQLAlchemy 2.0 기반이라 모델 코드 대부분 재사용 가능.
+- **전환이 유리해지는 시점(트리거)**: 동시 접속자 3명 이상이 상시화되거나, 사내망 외부 IP 접속을 허용해야 하는 시점.
+- **지금이 전환 적기라는 판단 근거**: 아직 seed/demo 수준 데이터라 이관 비용이 낮고, 양산 진입 전이라 계획된 다운타임 한 번으로 끝낼 수 있다 — 실사용자·실데이터가 쌓인 뒤 전환하는 것보다 리스크가 작다.
+- **전환 작업 개요**: ① 로컬 PostgreSQL 설치 + `psycopg2-binary`(또는 `psycopg[binary]`) 의존성 추가 ② `config.py`의 `database_url`을 `postgresql://...`로 교체 ③ `database.py`의 `_migrate_db()`에 있는 SQLite 전용 우회 로직(`_drop_fk_column` — Postgres는 FK 걸린 컬럼도 `DROP COLUMN`이 되므로 불필요) 제거, `requirements.txt`에 이미 있지만 미사용 중인 `alembic`을 이 기회에 정식 도입 ④ 기존 `au_test_system_prod.db` 데이터를 일회성 스크립트(SQLAlchemy로 SQLite 읽어 Postgres에 쓰기, 또는 pgloader)로 이관 ⑤ `idx_notif_deadline_dedup`(부분 유니크 인덱스) 등 SQLite 특유 문법이 Postgres에서도 동일하게 동작하는지 확인.
+- 실행은 아직 하지 않았다 — 검토·문서화만 완료된 상태이며, 실제 전환은 별도 작업으로 계획해 진행한다.
