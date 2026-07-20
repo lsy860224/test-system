@@ -187,7 +187,14 @@ def import_from_excel(db: Session, file_bytes: bytes, created_by: int) -> dict:
     ws = wb.active
 
     cats = {c.code.upper(): c.id for c in db.query(StandardCategory).all()}
-    existing = {item.standard_code for item in db.query(StandardItem).filter(StandardItem.is_deleted == False).all()}
+    # standard_code("6.1.1" 같은 조항 번호)는 규격 문서 내에서만 유일하다 — 서로 다른 규격이
+    # 같은 조항 번호를 쓰는 경우가 흔해서(예: ISO 16750-2와 ES 60100-NE30 둘 다 "5.1"), 중복
+    # 판정은 반드시 (standard_no, standard_code) 조합으로 해야 한다. standard_code만으로 판정하면
+    # 다른 규격의 신규 항목이 기존 규격의 같은 번호 항목과 충돌한 것으로 오인돼 조용히 스킵된다.
+    existing = {
+        (item.standard_no, item.standard_code)
+        for item in db.query(StandardItem).filter(StandardItem.is_deleted == False).all()
+    }
 
     created, skipped, errors = [], [], []
 
@@ -205,7 +212,8 @@ def import_from_excel(db: Session, file_bytes: bytes, created_by: int) -> dict:
             errors.append(f"행 {row_idx}: 항목 No. 또는 항목명 누락")
             continue
 
-        if standard_code in existing:
+        dedup_key = (standard_no, standard_code)
+        if dedup_key in existing:
             skipped.append(standard_code)
             continue
 
@@ -226,7 +234,7 @@ def import_from_excel(db: Session, file_bytes: bytes, created_by: int) -> dict:
         )
         db.add(item)
         created.append(standard_code)
-        existing.add(standard_code)
+        existing.add(dedup_key)
 
     db.commit()
     return {"created": len(created), "skipped": len(skipped), "errors": errors}
