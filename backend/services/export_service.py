@@ -14,6 +14,7 @@ from models.customer import Customer
 from models.item import Item
 from models.user import User
 from services.project_service import compute_project_progress
+from services.schedule_service import compute_status
 
 HDR_FILL = PatternFill("solid", fgColor="2B2F82")
 HDR_FONT = Font(color="FFFFFF", bold=True, size=11)
@@ -81,7 +82,7 @@ def generate_full_export(db: Session) -> bytes:
         ["프로젝트", "시험 항목", "시험 유형", "계획 시작", "계획 종료", "실제 시작", "실제 종료", "상태", "결과", "메모"],
         [[
             proj_names.get(sc.project_id, ""), std_names.get(sc.standard_item_id, ""), sc.test_type,
-            sc.planned_start, sc.planned_end, sc.actual_start, sc.actual_end, sc.status, sc.result, sc.notes,
+            sc.planned_start, sc.planned_end, sc.actual_start, sc.actual_end, compute_status(sc), sc.result, sc.notes,
         ] for sc in schedules],
         [20, 26, 10, 12, 12, 12, 12, 8, 8, 26],
     )
