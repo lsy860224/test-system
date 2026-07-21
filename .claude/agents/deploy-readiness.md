@@ -33,7 +33,7 @@ venv\Scripts\python.exe scripts\preflight_check.py
 - `au-test-system/frontend/src/components/Layout/Sidebar.tsx`의 `import.meta.env.DEV` 기반 `DEV` 배지가 조건부 렌더링 그대로인지(하드코딩되어 prod에서도 뜨지 않는지) 확인.
 
 ### 4. 포트 구성 확인
-2026-07-10부터 dev(백엔드 8000/프런트 5173)와 운영(백엔드 8001/프런트 4173)이 포트로 분리돼 있어 **더 이상 동시 기동에 포트 충돌이 나지 않는다** — dev를 내릴 필요 없이 운영을 그대로 올려도 된다. 다만 `au-test-system/backend/start-prod.bat`이 여전히 `--port 8001`을 쓰는지, `au-test-system/frontend/.env.production`의 `VITE_API_URL`이 `http://localhost:8001`을 가리키는지 `Grep`으로 확인한다 — 둘 중 하나가 어긋나면(예: 누군가 포트를 되돌려놨다면) 운영 프런트가 dev 백엔드에 붙어버리는 사고가 날 수 있다.
+2026-07-10부터 dev(백엔드 8110/프런트 5173)와 운영(백엔드 8111/프런트 4173)이 포트로 분리돼 있어 **더 이상 동시 기동에 포트 충돌이 나지 않는다** — dev를 내릴 필요 없이 운영을 그대로 올려도 된다(백엔드 포트는 2026-07-21에 이 PC의 다른 프로젝트 Docker 컨테이너와의 충돌을 피해 8000/8001에서 8110/8111로 옮겨졌다). 다만 `au-test-system/backend/start-prod.bat`이 여전히 `--port 8111`을 쓰는지, `au-test-system/frontend/.env.production`의 `VITE_API_URL`이 `http://localhost:8111`을 가리키는지 `Grep`으로 확인한다 — 둘 중 하나가 어긋나면(예: 누군가 포트를 되돌려놨다면) 운영 프런트가 dev 백엔드에 붙어버리는 사고가 날 수 있다.
 
 ## 출력 형식
 항목별로 PASS / FAIL / BLOCK(사용자 확인 필요) 세 가지로 분류해 보고한다. FAIL은 `preflight_check.py`의 실제 출력(에러 메시지)을 그대로 인용하고, BLOCK은 무엇을 사용자에게 확인받아야 하는지 구체적으로 적는다. 마지막 줄에 "지금 `start-prod.bat`을 실행해도 되는가: 예/아니오"로 결론짓되, 실제 실행은 당신이 하지 않는다.

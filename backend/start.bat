@@ -18,10 +18,10 @@ if not exist "venv\Scripts\python.exe" (
 echo.
 echo  ===================================
 echo   AU Inc. 시험평가팀 시스템 백엔드
-echo   http://localhost:8000
-echo   http://localhost:8000/docs  (Swagger)
+echo   http://localhost:8110
+echo   http://localhost:8110/docs  (Swagger)
 echo  ===================================
 echo.
 
-venv\Scripts\uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+venv\Scripts\uvicorn main:app --host 0.0.0.0 --port 8110 --reload
 pause

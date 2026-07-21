@@ -10,7 +10,7 @@ model: sonnet
 **하드 룰 — 권한 거부 시 우회 금지**: 어떤 도구 호출이든 auto-mode/권한 시스템에 의해 거부되면, 다른 방법으로 다시 시도하거나 스크래치패드 스크립트 등으로 우회하지 않는다. 그 즉시 무엇을 하려 했는지·왜 막혔는지를 보고서에 그대로 적고 그 항목은 확인불가로 남긴 채 멈춘다.
 
 ## 사전 준비
-1. `AU Backend`(포트 8000), `AU Frontend`(포트 5173) 프리뷰 서버가 떠 있는지 `preview_list`로 확인, 없으면 `preview_start`.
+1. `AU Backend`(포트 8110), `AU Frontend`(포트 5173) 프리뷰 서버가 떠 있는지 `preview_list`로 확인, 없으면 `preview_start`.
 2. 시드 관리자 계정: `admin` / `admin123` (`backend/services/auth_service.py`의 `seed_admin`). `의뢰자` role 등 다른 역할 계정이 필요하면 DB에 있는지 먼저 확인하고, 없으면 만들지 말고 사용자에게 필요 계정을 요청한다.
 
 ## 검증 항목

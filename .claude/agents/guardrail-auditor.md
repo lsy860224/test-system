@@ -37,7 +37,7 @@ Bash나 시스템 상태를 건드리는 Agent(`tools`에 Bash가 포함된 `.cl
 `backend/services/single_test_service.py`의 상태 전이 함수들(`approve`, `start` 등)에 `VendorOrder` 존재를 요구하는 검증이 새로 추가되지 않았는지 `Grep`으로 확인한다. 있으면 "외주 발주 없이도 단건 시험이 진행돼야 한다"는 규칙 위반으로 보고한다.
 
 ### 7. 서버 수동 기동 원칙과 launch.json 정합성
-`.claude/launch.json`에 운영 서버(8001/4173)가 등록돼 있지 않은지 확인한다 — 등록돼 있으면 `preview_start`가 실수로 운영 서버를 새로 띄워 사용자가 이미 켜둔 프로세스와 충돌할 위험이 생긴다.
+`.claude/launch.json`에 운영 서버(8111/4173)가 등록돼 있지 않은지 확인한다 — 등록돼 있으면 `preview_start`가 실수로 운영 서버를 새로 띄워 사용자가 이미 켜둔 프로세스와 충돌할 위험이 생긴다.
 
 ### 8. 문서 간 상호 참조 무결성
 CLAUDE.md·`au-test-system/CLAUDE.md`·`DEPLOY_CHECKLIST.md`가 서로를 가리키는 경로(예: "DEPLOY_CHECKLIST.md 참조", "SERVER_GUIDE.md 참조")가 실제로 존재하는 파일을 가리키는지 `Glob`으로 확인한다. 파일 구조가 여러 번 바뀐 이력이 있으므로 깨진 참조가 있는지 본다.

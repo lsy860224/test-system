@@ -10,24 +10,25 @@ For PM Agent domain context, see the parent `../CLAUDE.md`.
 ### Backend (FastAPI + SQLite)
 ```
 venv:    backend/venv/Scripts/python.exe
-개발 실행: backend/start.bat  또는  python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-           (backend/ 디렉터리에서 실행) → 포트 8000
-운영 실행: backend/start-prod.bat  (--reload 없음, preflight_check.py가 기동 전 자동 검증) → 포트 8001
-           dev(8000)와 포트가 달라 동시 기동 가능 (2026-07-10부터)
+개발 실행: backend/start.bat  또는  python -m uvicorn main:app --host 0.0.0.0 --port 8110 --reload
+           (backend/ 디렉터리에서 실행) → 포트 8110
+운영 실행: backend/start-prod.bat  (--reload 없음, preflight_check.py가 기동 전 자동 검증) → 포트 8111
+           dev(8110)와 포트가 달라 동시 기동 가능 (2026-07-10부터)
 DB:      backend/.env의 DATABASE_URL로 결정 (config.py가 pydantic-settings로 로드)
            개발: au_test_system.db (seed/demo 데이터)
            운영: au_test_system_prod.db (start-prod.bat이 환경변수로 오버라이드, 실데이터)
            절대 경로 필수 — CWD 상대경로 오류 주의
-포트 확인: netstat -ano | findstr ":8000"  /  ":8001"
+포트 확인: netstat -ano | findstr ":8110"  /  ":8111"
 ```
 개발/운영 DB·포트 분리 배경 및 배포 체크리스트: `DEPLOY_CHECKLIST.md`. 기동·확인 실무 절차(SECRET_KEY `setx` 상세 포함): `SERVER_GUIDE.md`
+백엔드 포트가 8000/8001이 아니라 8110/8111인 이유: `DEPLOY_CHECKLIST.md`의 "포트 8000번대 초반 충돌(Docker)" 절 참조 (2026-07-21).
 
 ### Frontend (React + Vite)
 ```
 개발 실행: npm run dev  (frontend/ 디렉터리에서 실행) → 포트 5173
 운영 실행: frontend/start-prod.bat  (tsc && vite build 후 vite preview) → 포트 4173
-           .env.production의 VITE_API_URL=http://localhost:8001이 빌드 시점에 번들에 박혀
-           운영 프런트는 자동으로 운영 백엔드(8001)만 바라봄 — dev(5173)는 기본값 8000 그대로
+           .env.production의 VITE_API_URL=http://localhost:8111이 빌드 시점에 번들에 박혀
+           운영 프런트는 자동으로 운영 백엔드(8111)만 바라봄 — dev(5173)는 기본값 8110 그대로
 CORS:    backend/main.py → allow_origins 에 5173, 5174, 4173 포함
 ```
 
@@ -193,7 +194,7 @@ P2 개발 기능 정의서(M01~M08) 전 항목 완료. M09·M10 별도 요청으
 
 ## 8. 배포 게이트 Agent (dev → prod 승격 전 감사)
 
-**9개 Tester Agent(§7)와는 다른 계층이다.** Tester Agent는 "기능이 동작하는가"를 보고, `deploy-readiness`(`.claude/agents/deploy-readiness.md`)는 그 위에서 "dev에서 검증이 끝난 이 상태를 실제 운영 DB(`au_test_system_prod.db`)에 적용해도 안전한가"만 감사한다. 판단 기준은 `DEPLOY_CHECKLIST.md`이며, `backend/scripts/preflight_check.py`를 prod 조건으로 직접 실행해 ENVIRONMENT/DATABASE_URL/SECRET_KEY를 검증하고, 스키마 변경 시 백업 여부·CORS·프런트 운영 빌드(`tsc`) 통과 같은 수동 항목은 사용자에게 확인을 요청한다. (2026-07-10부터 dev=8000/5173, 운영=8001/4173으로 포트가 분리돼 동시 기동이 가능해졌다 — 더 이상 "dev부터 내려야 한다"는 전제가 아니다.)
+**9개 Tester Agent(§7)와는 다른 계층이다.** Tester Agent는 "기능이 동작하는가"를 보고, `deploy-readiness`(`.claude/agents/deploy-readiness.md`)는 그 위에서 "dev에서 검증이 끝난 이 상태를 실제 운영 DB(`au_test_system_prod.db`)에 적용해도 안전한가"만 감사한다. 판단 기준은 `DEPLOY_CHECKLIST.md`이며, `backend/scripts/preflight_check.py`를 prod 조건으로 직접 실행해 ENVIRONMENT/DATABASE_URL/SECRET_KEY를 검증하고, 스키마 변경 시 백업 여부·CORS·프런트 운영 빌드(`tsc`) 통과 같은 수동 항목은 사용자에게 확인을 요청한다. (2026-07-10부터 dev=8110/5173, 운영=8111/4173으로 포트가 분리돼 동시 기동이 가능해졌다 — 더 이상 "dev부터 내려야 한다"는 전제가 아니다. 백엔드 포트는 2026-07-21에 8000/8001 → 8110/8111로 재조정됐다, §1 참조.)
 
 **규칙: "배포해도 되는지 확인해줘", "운영 적용 전 검증", "start-prod 돌려도 되는지" 요청 시 `deploy-readiness` Agent를 실행한다.** 이 Agent는 코드를 고치지 않고, `start-prod.bat`을 대신 실행하지도 않는다 — PASS/FAIL/BLOCK 감사 결과만 보고한다. 일반적으로 배포 전 순서는: ① 변경 범위에 해당하는 Tester Agent(§7)로 기능 검증 → ② `deploy-readiness`로 환경/설정 감사 → ③ 사용자가 직접 dev 서버를 내리고 `start-prod.bat` 실행.
 

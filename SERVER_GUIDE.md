@@ -6,15 +6,17 @@
 
 | | 백엔드 | 프런트엔드 | 데이터 |
 |---|---|---|---|
-| 개발(dev) | `:8000` | `:5173` | `backend/au_test_system.db` (seed/demo) |
-| 운영(prod) | `:8001` | `:4173` | `backend/au_test_system_prod.db` (실데이터) |
+| 개발(dev) | `:8110` | `:5173` | `backend/au_test_system.db` (seed/demo) |
+| 운영(prod) | `:8111` | `:4173` | `backend/au_test_system_prod.db` (실데이터) |
 
-프런트 운영 빌드(`frontend/.env.production`의 `VITE_API_URL=http://localhost:8001`)가 빌드 시점에 번들에 박히기 때문에, 운영 프런트(4173)는 항상 운영 백엔드(8001)만 바라본다. 개발 프런트(5173)는 이 파일을 읽지 않고 기본값(8000)을 그대로 쓴다. CORS(`backend/main.py`의 `allow_origins`)는 5173·5174·4173을 이미 다 허용하고 있어 추가 설정이 필요 없다.
+프런트 운영 빌드(`frontend/.env.production`의 `VITE_API_URL=http://localhost:8111`)가 빌드 시점에 번들에 박히기 때문에, 운영 프런트(4173)는 항상 운영 백엔드(8111)만 바라본다. 개발 프런트(5173)는 이 파일을 읽지 않고 기본값(8110)을 그대로 쓴다. CORS(`backend/main.py`의 `allow_origins`)는 5173·5174·4173을 이미 다 허용하고 있어 추가 설정이 필요 없다.
+
+백엔드 포트가 8000/8001이 아니라 8110/8111인 이유는 §6 "알려진 이슈"의 Docker 포트 충돌 항목 참조.
 
 ## 2. 개발 서버 기동
 
 ```
-backend/start.bat          → uvicorn --reload, :8000, au_test_system.db
+backend/start.bat          → uvicorn --reload, :8110, au_test_system.db
 frontend에서: npm run dev  → vite dev, :5173
 ```
 
@@ -23,7 +25,7 @@ Claude Code 세션에서는 `.claude/launch.json`에 등록된 "AU Backend"/"AU 
 ## 3. 운영 서버 기동
 
 ```
-backend/start-prod.bat            → uvicorn (--reload 없음), :8001, au_test_system_prod.db
+backend/start-prod.bat            → uvicorn (--reload 없음), :8111, au_test_system_prod.db
 frontend/start-prod.bat           → tsc && vite build 후 vite preview, :4173
 ```
 
@@ -76,16 +78,17 @@ Write-Output "registry_has_value=$hasValue length=$($v.Length) is_default_placeh
 `preview_list`(Claude Code 프리뷰 도구)는 **개발 서버만** 추적한다 — 운영 서버는 백그라운드 셸 프로세스로 띄우기 때문에 `preview_list`가 비어 있어도 운영이 죽었다는 뜻이 아니고, 반대로 운영이 떠 있어도 `preview_list`엔 안 잡힌다. 정확히 확인하려면 4개 포트를 직접 찔러본다:
 
 ```bash
-curl -s -o /dev/null -w "status=%{http_code}\n" http://localhost:8000/docs   # 개발 백엔드
-curl -s -o /dev/null -w "status=%{http_code}\n" http://localhost:8001/docs   # 운영 백엔드
+curl -s -o /dev/null -w "status=%{http_code}\n" http://localhost:8110/docs   # 개발 백엔드
+curl -s -o /dev/null -w "status=%{http_code}\n" http://localhost:8111/docs   # 운영 백엔드 (주의: 아래 참조)
 curl -s -o /dev/null -w "status=%{http_code}\n" http://localhost:5173/      # 개발 프런트
 curl -s -o /dev/null -w "status=%{http_code}\n" http://localhost:4173/      # 운영 프런트
 ```
-백엔드는 `/`(루트)가 아니라 `/docs`로 확인한다 — FastAPI는 루트 경로 핸들러가 없어서 `/`는 정상 상태에서도 404가 뜬다.
+개발 백엔드는 `/`(루트)가 아니라 `/docs`로 확인한다 — FastAPI는 루트 경로 핸들러가 없어서 `/`는 정상 상태에서도 404가 뜬다. **운영 백엔드는 `/docs`로 확인하면 안 된다** — `main.py`가 `environment=="production"`일 때 `docs_url=None`으로 Swagger 문서 자체를 꺼버리므로 서버가 멀쩡해도 `/docs`는 항상 404다. 운영은 `curl -s http://localhost:8111/` (FastAPI의 `{"detail":"Not Found"}` JSON이 오면 정상 — 연결 자체가 안 되거나 다른 형식의 응답이 오면 이상 신호)로 확인하거나, 실제 로그인 API를 호출해본다. 참고로 2026-07-21에 `localhost:8000` 요청이 이 프로젝트와 무관한 Docker 컨테이너로 잘못 라우팅돼 `/docs`가 `Werkzeug` 서버의 404를 반환한 사례가 있었다 — 응답 헤더의 `Server:` 값이 `uvicorn`이 아니면 엉뚱한 서비스에 요청이 간 것이니 포트 충돌을 의심할 것.
 
 ## 6. 알려진 이슈 / 트러블슈팅
 
 - **운영 서버가 예기치 않게 죽는 경우가 있었다** (2026-07-10, 원인 미특정). 백그라운드 셸 프로세스로 띄우는 구조라 이런 게 또 발생할 수 있다 — 계속 안정적으로 운영할 계획이면 Windows 서비스나 작업 스케줄러처럼 죽으면 자동으로 재시작하는 방식으로 옮기는 걸 고려한다.
+- **이 PC의 다른 프로젝트 Docker 컨테이너와 포트 8000번대 초반이 충돌한다** (2026-07-21 발견). `devcontainer-frappe-1`(Frappe 프레임워크) 컨테이너가 `0.0.0.0:8000-8005`·`[::]:8000-8005`를 매핑해두고 있어서, 브라우저가 `localhost`를 IPv6(`::1`)로 해석하면 au-test-system 백엔드가 아니라 그 컨테이너로 요청이 새서 로그인 전 CORS preflight가 404를 받고 브라우저가 로그인 요청을 통째로 차단했다 — 서버 자체는 정상인데 브라우저에서만 로그인이 안 되는 것처럼 보였다. 원인 파악에 `curl -i -X OPTIONS ...`로 응답 헤더의 `Server:` 값을 확인하는 방법이 유효했다(`uvicorn`이 아니라 `Werkzeug`가 찍히면 다른 서비스로 새는 것). 해결책으로 백엔드 포트를 8000/8001 → **8110/8111**로 옮겼다(이 문서 전체가 그 새 포트 기준으로 갱신돼 있음). 그 컨테이너가 없는 환경으로 옮기면 8000/8001로 되돌려도 되지만, 되돌릴 실익은 없다.
 - **`.bat` 파일을 편집한 뒤에는 실제 실행으로 재검증할 것.** 코드 에디터/AI 도구로 저장하면 CRLF+BOM이 깨져 cmd.exe 파싱이 통째로 무너지는 사고가 실제로 있었다 — 상세 재발방지 절차는 `DEPLOY_CHECKLIST.md`의 "⚠️ .bat 파일을 다시 편집할 때 반드시 지킬 것" 참조.
 - **배포 전 최종 확인은 `deploy-readiness` Agent**(`.claude/agents/deploy-readiness.md`)로 한다 — "배포해도 되는지 확인해줘"라고 요청하면 preflight 자동검증 + 수동 체크리스트 + 잔재 코드 + 포트 구성을 감사해서 PASS/FAIL/BLOCK으로 보고한다. 코드 수정이나 실제 배포는 하지 않는다.
 
