@@ -9,3 +9,4 @@ frontend/dist/
 backend/.env
 *.log
 .claude/settings.local.json
+graphify-out/
