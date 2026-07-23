@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Literal, Optional
+from urllib.parse import quote
 
 from dependencies import get_db, require_staff
 from schemas.sop import (
@@ -11,13 +12,19 @@ from schemas.sop import (
 )
 from schemas.standard import StandardItemOut
 from schemas.equipment import EquipmentListItem
-from services import sop_service
+from services import sop_service, sop_export_service
 
 class StandardItemIds(BaseModel):
     standard_item_ids: list[int]
 
 class EquipmentIds(BaseModel):
     equipment_ids: list[int]
+
+class SOPExportRequest(BaseModel):
+    sop_ids: list[int]
+    format: Literal["pptx", "docx"]
+    variant: Literal["절차서", "계획서"] = "절차서"
+    cover_info: Optional[dict[str, str]] = None
 
 router = APIRouter(prefix="/sop", tags=["절차서 관리"])
 
@@ -96,3 +103,20 @@ def get_sop_equipment(sop_id: int, db: Session = Depends(get_db), _=Depends(requ
 @router.put("/{sop_id}/equipment", response_model=list[EquipmentListItem])
 def set_sop_equipment(sop_id: int, body: EquipmentIds, db: Session = Depends(get_db), _=Depends(require_staff)):
     return sop_service.set_sop_equipment(db, sop_id, body.equipment_ids)
+
+# ── 문서 내보내기 (다중 절차서 → 병합 pptx/docx) ──────────────────
+@router.post("/export")
+def export_documents(body: SOPExportRequest, db: Session = Depends(get_db), _=Depends(require_staff)):
+    if body.format == "pptx":
+        content = sop_export_service.generate_pptx(db, body.sop_ids, body.variant, body.cover_info)
+        media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    else:
+        content = sop_export_service.generate_docx(db, body.sop_ids, body.variant, body.cover_info)
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    filename = f"SOP_{body.variant}.{body.format}"
+    encoded_filename = quote(filename)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename=\"SOP_export.{body.format}\"; filename*=UTF-8''{encoded_filename}"},
+    )

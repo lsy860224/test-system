@@ -12,6 +12,7 @@ import Badge from '@/components/ui/Badge'
 import { Overlay } from '@/components/ui/Modal'
 import { FormField as F } from '@/components/ui/FormField'
 import { FileDropZone } from '@/components/ui/FileDropZone'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 import UnsavedChangesDialog from '@/components/ui/UnsavedChangesDialog'
 import { useFormState } from '@/hooks/useFormState'
 import { useUnsavedFormGuard } from '@/hooks/useUnsavedFormGuard'
@@ -29,7 +30,9 @@ type Tab = '기본정보' | '절차 내용' | '첨부파일' | '규격 항목' |
 const emptyForm = {
   sop_number: '', title: '', version: 'v1.0', doc_type: '시험절차서', category: '',
   status: '초안', owner: '', approver_id: '' as number | '',
-  issue_date: '', revision_date: '', description: '', content: '', notes: '',
+  issue_date: '', revision_date: '', description: '',
+  sample_quantity: '', test_condition: '', test_device: '',
+  content: '', judgment_criteria: '', notes: '',
 }
 
 const emptyRevForm = {
@@ -114,7 +117,9 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
         status: s.status ?? '초안', owner: s.owner ?? '',
         approver_id: s.approver_id ?? '', issue_date: s.issue_date ?? '',
         revision_date: s.revision_date ?? '', description: s.description ?? '',
-        content: s.content ?? '', notes: s.notes ?? '',
+        sample_quantity: s.sample_quantity ?? '', test_condition: s.test_condition ?? '',
+        test_device: s.test_device ?? '',
+        content: s.content ?? '', judgment_criteria: s.judgment_criteria ?? '', notes: s.notes ?? '',
       })
       setRevisions(s.revisions ?? [])
       setAttachments(s.attachments ?? [])
@@ -181,6 +186,23 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
   }
 
   // ── 기본정보 저장 ──────────────────────────────────────
+  const buildPayload = (statusOverride?: string) => ({
+    sop_number: form.sop_number.trim(), title: form.title.trim(),
+    version: form.version || 'v1.0', doc_type: form.doc_type || '시험절차서',
+    category: form.category || null,
+    status: statusOverride ?? form.status, owner: form.owner || null,
+    approver_id: form.approver_id === '' ? null : Number(form.approver_id),
+    issue_date: form.issue_date || null,
+    revision_date: form.revision_date || null,
+    description: form.description || null,
+    sample_quantity: form.sample_quantity || null,
+    test_condition: form.test_condition || null,
+    test_device: form.test_device || null,
+    content: form.content || null,
+    judgment_criteria: form.judgment_criteria || null,
+    notes: form.notes || null,
+  })
+
   const handleSave = async () => {
     const error = validateRequired([
       [!form.sop_number.trim(), '문서 번호를 입력하세요'],
@@ -189,17 +211,7 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
     if (error) { alert(error); return }
     setSaving(true)
     try {
-      const payload = {
-        sop_number: form.sop_number.trim(), title: form.title.trim(),
-        version: form.version || 'v1.0', doc_type: form.doc_type || '시험절차서',
-        category: form.category || null,
-        status: form.status, owner: form.owner || null,
-        approver_id: form.approver_id === '' ? null : Number(form.approver_id),
-        issue_date: form.issue_date || null,
-        revision_date: form.revision_date || null,
-        description: form.description || null,
-        content: form.content || null, notes: form.notes || null,
-      }
+      const payload = buildPayload()
       let sid = savedSopId
       if (isEdit && sid) { await sopApi.update(sid, payload) }
       else {
@@ -232,6 +244,23 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
       const msg = getErrorMessage(err, '저장 중 오류가 발생했습니다')
       alert(msg)
     } finally { setSaving(false); setStandardLoading(false); setEquipmentLoading(false) }
+  }
+
+  // 규격 매트릭스의 절차서 커버리지는 승인 상태를 완료로 집계한다(sop_coverage.py) —
+  // 상태 드롭다운에 묻히지 않도록 별도 원클릭 액션으로 노출한다.
+  const handleQuickApprove = async () => {
+    if (!savedSopId) return
+    if (!confirm(`"${form.title}" 절차서를 작성 완료(승인) 처리하시겠습니까?\n규격 매트릭스의 절차서 커버리지가 "완료"로 반영됩니다.`)) return
+    setSaving(true)
+    try {
+      await sopApi.update(savedSopId, buildPayload('승인'))
+      set('status', '승인')
+      markClean()
+      onSaved()
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err, '처리 중 오류가 발생했습니다')
+      alert(msg)
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -343,6 +372,14 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
                 })}
               </select>
             </F>
+            {isEdit && !['승인', '폐기'].includes(form.status) && (!currentRole || SOP_STATUS_ROLE_MAP['승인']?.includes(currentRole)) && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <Button size="sm" onClick={handleQuickApprove} loading={saving}
+                  style={{ background: '#F0FFF4', color: '#38A169', border: '1px solid #9AE6B4' }}>
+                  ✓ 작성 완료 처리 (승인) — 규격 매트릭스에 완료로 반영됩니다
+                </Button>
+              </div>
+            )}
             <F label="문서 번호 *">
               <input value={form.sop_number} onChange={(e) => set('sop_number', e.target.value)}
                 style={inp} placeholder="SOP-ENV-001" />
@@ -371,35 +408,52 @@ export default function SOPForm({ sopId, onClose, onSaved }: Props) {
             <F label="최근 개정일">
               <input type="date" value={form.revision_date} onChange={(e) => set('revision_date', e.target.value)} style={inp} />
             </F>
-            <F label="적용 범위" span={2}>
-              <textarea value={form.description} onChange={(e) => set('description', e.target.value)}
-                rows={3} style={{ ...inp, resize: 'vertical' }}
-                placeholder="본 절차서는 온도충격시험기를 사용한 모든 시험에 적용한다." />
-            </F>
-            <F label="비고" span={2}>
-              <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
-                rows={2} style={{ ...inp, resize: 'vertical' }}
-                placeholder="참고 규격, 관련 장비 등" />
-            </F>
           </div>
         )}
 
-        {/* ── 절차 내용 ── */}
+        {/* ── 절차 내용 (ES 시험 절차서/계획서 표준 포맷) ── */}
         {tab === '절차 내용' && (
           <div>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-              시험 절차의 주요 단계를 기술합니다. 저장 후 공식 문서(Word/PDF)로 출력하세요.
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+              HKMC ES 시험 절차서/계획서의 항목별 시험 절차 포맷(Test/Scope/Condition/Device/Procedure&amp;Method/Required/Remarks)에 맞춰 입력합니다.
             </p>
-            <textarea
-              value={form.content}
-              onChange={(e) => set('content', e.target.value)}
-              style={{
-                ...inp, resize: 'vertical', minHeight: 420,
-                fontFamily: 'monospace', fontSize: 13, lineHeight: 1.7,
-              }}
-              placeholder={`1. 목적\n   본 시험은 제품이 온도 급변 환경에서 기능 및 구조를 유지하는지 검증한다.\n\n2. 적용 범위\n   IVI 인포테인먼트 시스템 — DV 단계\n\n3. 준비 사항\n   3.1 시험 장비: 온도충격시험기 (TS-120R)\n   3.2 시험 조건: -40°C ↔ +85°C, 전환 시간 ≤ 30초\n\n4. 절차\n   4.1 시험편 준비...\n   4.2 초기 측정...\n   4.3 시험 실시...\n   4.4 최종 측정...\n\n5. 합부 판정\n   외관 이상 없음 + 기능 정상 동작 → 합격`}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <div style={{ display: 'grid', gap: 16 }}>
+              <F label="목적 (Scope)">
+                <textarea value={form.description} onChange={(e) => set('description', e.target.value)}
+                  rows={2} style={{ ...inp, resize: 'vertical' }}
+                  placeholder="본 시험은 제품이 온도 급변 환경에서 기능 및 구조를 유지하는지 검증한다." />
+              </F>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+                <F label="시료 수량 (Quantity of Sample)">
+                  <input value={form.sample_quantity} onChange={(e) => set('sample_quantity', e.target.value)}
+                    style={inp} placeholder="3EA 이상" />
+                </F>
+                <F label="시험 조건 (Condition)">
+                  <input value={form.test_condition} onChange={(e) => set('test_condition', e.target.value)}
+                    style={inp} placeholder="외부 환경: 상온 (23±5°C), 상습 (60±20%) / 전원 조건: UB" />
+                </F>
+              </div>
+              <F label="필요 장비 (Device)">
+                <textarea value={form.test_device} onChange={(e) => set('test_device', e.target.value)}
+                  rows={3} style={{ ...inp, resize: 'vertical' }}
+                  placeholder={'Power Supply\nOscilloscope\n온도충격시험기 (TS-120R)'} />
+              </F>
+              <F label="절차 및 방법 (Procedure &amp; Method)">
+                <RichTextEditor value={form.content} onChange={(html) => set('content', html)}
+                  placeholder="시험 절차를 단계별로 기술하고, 필요 시 파형/구성도 이미지를 삽입하세요." />
+              </F>
+              <F label="판정 기준 (Required)">
+                <textarea value={form.judgment_criteria} onChange={(e) => set('judgment_criteria', e.target.value)}
+                  rows={2} style={{ ...inp, resize: 'vertical' }}
+                  placeholder="Class A로 판정할 것" />
+              </F>
+              <F label="비고 (Remarks)">
+                <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
+                  rows={2} style={{ ...inp, resize: 'vertical' }}
+                  placeholder="참고 규격, 관련 장비 등" />
+              </F>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
               <Button size="sm" onClick={handleSave} loading={saving}>내용 저장</Button>
             </div>
           </div>

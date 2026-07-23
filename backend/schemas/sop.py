@@ -33,7 +33,11 @@ class SOPCreate(BaseModel):
     issue_date: Optional[date] = None
     revision_date: Optional[date] = None
     description: Optional[str] = None
+    sample_quantity: Optional[str] = None
+    test_condition: Optional[str] = None
+    test_device: Optional[str] = None
     content: Optional[str] = None
+    judgment_criteria: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -72,7 +76,11 @@ class AttachmentOut(BaseModel):
 
 class SOPDetail(SOPListItem):
     description: Optional[str] = None
+    sample_quantity: Optional[str] = None
+    test_condition: Optional[str] = None
+    test_device: Optional[str] = None
     content: Optional[str] = None
+    judgment_criteria: Optional[str] = None
     notes: Optional[str] = None
     revisions: List[RevisionOut] = []
     attachments: List[AttachmentOut] = []

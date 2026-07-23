@@ -34,9 +34,13 @@ class SOP(Base):
     approver_id  = Column(Integer, ForeignKey("users.id"), nullable=True)  # 승인자(사용자)
     issue_date   = Column(Date,        nullable=True)    # 최초 발행일
     revision_date = Column(Date,       nullable=True)    # 최근 개정일
-    description  = Column(Text,        nullable=True)    # 적용 범위
-    content      = Column(Text,        nullable=True)    # 절차 주요 내용
-    notes        = Column(Text,        nullable=True)
+    description  = Column(Text,        nullable=True)    # 적용 범위 (Scope)
+    sample_quantity = Column(String(50), nullable=True)  # 시료 수량 (Quantity of Sample)
+    test_condition  = Column(Text,       nullable=True)  # 시험 조건 (Condition)
+    test_device     = Column(Text,       nullable=True)  # 필요 장비 (Device)
+    content      = Column(Text,        nullable=True)    # 절차 및 방법 — HTML(인라인 이미지 포함)
+    judgment_criteria = Column(Text,   nullable=True)     # 판정 기준 (Required)
+    notes        = Column(Text,        nullable=True)     # 비고 (Remarks)
     created_at   = Column(DateTime, server_default=func.now())
     updated_at   = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

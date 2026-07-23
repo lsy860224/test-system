@@ -8,6 +8,7 @@ import { useListPagination, FETCH_SIZE } from '@/hooks/useListPagination'
 import Pagination from '@/components/ui/Pagination'
 import { useUIStore } from '@/stores/uiStore'
 import SOPForm from '@/pages/SOPForm'
+import SOPExportDialog from '@/pages/SOPExportDialog'
 
 export default function SOPList() {
   const { items, total, loading, page, setPage, sort, setSort, totalPages, pageItems, runLoad } =
@@ -18,6 +19,21 @@ export default function SOPList() {
   const [filterDocType, setFilterDocType] = useState('')
   const [users, setUsers] = useState<AppUser[]>([])
   const [formId, setFormId] = useState<number | null | undefined>(undefined)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [showExportDialog, setShowExportDialog] = useState(false)
+
+  const toggleSelect = (id: number) => setSelectedIds((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+  const allPageSelected = pageItems.length > 0 && pageItems.every((s) => selectedIds.has(s.id))
+  const toggleSelectAllOnPage = () => setSelectedIds((prev) => {
+    const next = new Set(prev)
+    if (allPageSelected) pageItems.forEach((s) => next.delete(s.id))
+    else pageItems.forEach((s) => next.add(s.id))
+    return next
+  })
 
   useEffect(() => { usersApi.list().then(setUsers) }, [])
   const approverName = (id?: number | null) => users.find((u) => u.id === id)?.name
@@ -49,7 +65,14 @@ export default function SOPList() {
       {/* page header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>시험 절차서 · 장비 절차서 (Standard Operating Procedure)</p>
-        <Button onClick={() => setFormId(null)}>+ 절차서 등록</Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {selectedIds.size > 0 && (
+            <Button variant="secondary" onClick={() => setShowExportDialog(true)}>
+              {selectedIds.size}건 선택됨 · 내보내기
+            </Button>
+          )}
+          <Button onClick={() => setFormId(null)}>+ 절차서 등록</Button>
+        </div>
       </div>
 
       {/* 상태 요약 뱃지 */}
@@ -110,6 +133,9 @@ export default function SOPList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
+              <th style={{ padding: '10px 12px', width: 1 }}>
+                <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} style={{ cursor: 'pointer' }} />
+              </th>
               <SortableTh label="문서번호" sortKey="sop_number" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
               <SortableTh label="종류" sortKey="doc_type" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
               <SortableTh label="버전" sortKey="version" sort={sort} onSort={(k) => { setSort(toggleSort(sort, k)); setPage(1) }} />
@@ -130,6 +156,9 @@ export default function SOPList() {
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover, #F7F8FA)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '')}
               >
+                <td style={{ padding: '10px 12px' }} onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)} style={{ cursor: 'pointer' }} />
+                </td>
                 <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{s.sop_number}</td>
                 <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                   <span style={{
@@ -167,6 +196,10 @@ export default function SOPList() {
 
       {formId !== undefined && (
         <SOPForm sopId={formId} onClose={() => setFormId(undefined)} onSaved={handleSaved} />
+      )}
+
+      {showExportDialog && (
+        <SOPExportDialog sopIds={[...selectedIds]} onClose={() => setShowExportDialog(false)} />
       )}
     </div>
   )

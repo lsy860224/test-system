@@ -16,7 +16,11 @@ export interface SOPItem {
   issue_date?: string | null
   revision_date?: string | null
   description?: string | null
+  sample_quantity?: string | null
+  test_condition?: string | null
+  test_device?: string | null
   content?: string | null
+  judgment_criteria?: string | null
   notes?: string | null
   created_at: string
   updated_at?: string
@@ -88,6 +92,20 @@ export const sopApi = {
 
   setEquipment: (sopId: number, equipmentIds: number[]) =>
     client.put<Equipment[]>(`/sop/${sopId}/equipment`, { equipment_ids: equipmentIds }).then((r) => r.data),
+
+  exportDocuments: async (
+    sopIds: number[],
+    format: 'pptx' | 'docx',
+    variant: '절차서' | '계획서',
+    coverInfo?: Record<string, string>,
+  ) => {
+    const response = await client.post(
+      '/sop/export',
+      { sop_ids: sopIds, format, variant, cover_info: coverInfo },
+      { responseType: 'blob' },
+    )
+    downloadBlob(response.data, `SOP_${variant}.${format}`)
+  },
 }
 
 export const SOP_CATEGORIES = ['환경시험', '전기시험', 'EMC 시험', '기계시험', '신뢰성시험', '측정', '공통', '기타']

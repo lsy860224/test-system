@@ -93,6 +93,12 @@ def _migrate_db():
         # co_vehicle_model은 운영 미배포 상태에서 co_source_schedule_id로 대체됨 (2026-07-21)
         "ALTER TABLE project_standard_items DROP COLUMN co_vehicle_model",
         "ALTER TABLE project_standard_items ADD COLUMN co_source_schedule_id INTEGER REFERENCES test_schedules(id)",
+
+        # sops: 절차 표준 포맷 필드 추가 (ES 시험 절차서/계획서 첨부 문서 구조 반영, 2026-07-23)
+        "ALTER TABLE sops ADD COLUMN sample_quantity VARCHAR(50)",
+        "ALTER TABLE sops ADD COLUMN test_condition TEXT",
+        "ALTER TABLE sops ADD COLUMN test_device TEXT",
+        "ALTER TABLE sops ADD COLUMN judgment_criteria TEXT",
     ]
     with engine.connect() as conn:
         for sql in migrations:
