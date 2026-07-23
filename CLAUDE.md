@@ -238,3 +238,24 @@ P2 개발 기능 정의서(M01~M08) 전 항목 완료. M09·M10 별도 요청으
 - **지금이 전환 적기라는 판단 근거**: 아직 seed/demo 수준 데이터라 이관 비용이 낮고, 양산 진입 전이라 계획된 다운타임 한 번으로 끝낼 수 있다 — 실사용자·실데이터가 쌓인 뒤 전환하는 것보다 리스크가 작다.
 - **전환 작업 개요**: ① 로컬 PostgreSQL 설치 + `psycopg2-binary`(또는 `psycopg[binary]`) 의존성 추가 ② `config.py`의 `database_url`을 `postgresql://...`로 교체 ③ `database.py`의 `_migrate_db()`에 있는 SQLite 전용 우회 로직(`_drop_fk_column` — Postgres는 FK 걸린 컬럼도 `DROP COLUMN`이 되므로 불필요) 제거, `requirements.txt`에 이미 있지만 미사용 중인 `alembic`을 이 기회에 정식 도입 ④ 기존 `au_test_system_prod.db` 데이터를 일회성 스크립트(SQLAlchemy로 SQLite 읽어 Postgres에 쓰기, 또는 pgloader)로 이관 ⑤ `idx_notif_deadline_dedup`(부분 유니크 인덱스) 등 SQLite 특유 문법이 Postgres에서도 동일하게 동작하는지 확인.
 - 실행은 아직 하지 않았다 — 검토·문서화만 완료된 상태이며, 실제 전환은 별도 작업으로 계획해 진행한다.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+### 기능 추적 → 코드 수정 워크플로우 (graphify 활용, 2026-07-23)
+
+사용자가 기능 추가/수정/버그 수정을 요청하면, 파일을 바로 열기 전에 아래 순서로 영향 범위부터 파악한다 — §2 아키텍처 원칙상 기능 하나가 보통 Router/Service/Schema/Model(backend) + API client/Page/Store(frontend) 7개 레이어에 걸쳐 있어서, grep만으로는 빠뜨리기 쉽다.
+
+1. **추적**: `graphify query "<기능/엔티티명>"` 또는 `graphify explain "<모델·함수명>"`으로 관련 노드(레이어별 파일) 전수 확인. 예: `graphify explain "StandardItem"` → StandardItem을 참조하는 8개 서비스 전부가 한 번에 나옴.
+2. **영향도 확인**: 수정 대상이 `GRAPH_REPORT.md`의 God Nodes(고차수 노드, 예: `Base`, `StandardItem`)에 해당하면 fan-out이 크다는 뜻 — 변경 시 회귀 범위가 넓으므로 더 신중히 확인하고, 관련 Tester Agent(`au-test-system/CLAUDE.md` §7)를 검증 대상에 포함시킨다.
+3. **경로 확인** (모듈 간 영향이 애매할 때): `graphify path "<A>" "<B>"`로 두 모듈이 실제로 연결돼 있는지, 있다면 어떤 관계(참조/호출/의미적 유사)로 연결되는지 확인 후 수정 범위를 정한다.
+4. **수정**: 1~3에서 식별된 파일들을 §2 레이어 규칙(Router는 thin, 로직은 Service)에 맞춰 수정.
+5. **동기화**: 수정 완료 후 `graphify . --update`로 그래프 재동기화. 이때 재추출은 **바뀐 파일 전체**를 대상으로 해야 한다 — "새로 추가된 부분만" 좁게 시키면 그 파일의 기존 노드가 통째로 유실된다(2026-07-23 실제로 49개 중 35개 유실 직전까지 갔던 사고, 기존 노드 ID를 서브에이전트에 명시적으로 전달해 재사용시켜 방지함). `--update`가 diff 기반이 아니라 "재추출된 파일은 통째로 교체"라는 걸 항상 전제할 것.
+6. **회귀 검증**: 수정된 모듈에 해당하는 Tester Agent(`au-test-system/CLAUDE.md` §7 Tier 0~4)로 실제 동작 검증 — graphify는 구조 파악용이지 기능 검증 도구가 아니다.
