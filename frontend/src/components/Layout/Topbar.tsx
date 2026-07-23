@@ -21,10 +21,9 @@ const TITLES: Record<string, string> = {
   '/items': '정보 관리 : 아이템 리스트',
   '/reports/gap-analysis': '임원 보고 : Gap Analysis',
   '/reports/quarterly-kpi': '임원 보고 : 분기별 KPI',
-  '/customers/new': '정보 입력 : 업체 등록',
-  '/projects/new': '정보 입력 : 프로젝트 등록',
-  '/items/new': '정보 입력 : 아이템 등록',
-  '/vendors/registry': '정보 입력 : 외주 시험소 등록',
+  '/customers/new': '업체 등록',
+  '/projects/new': '프로젝트 등록',
+  '/items/new': '아이템 등록',
 }
 
 export default function Topbar() {

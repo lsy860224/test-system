@@ -43,16 +43,6 @@ const MENU: MenuItem[] = [
       { key: 'm9-2', label: '분기별 KPI',    path: '/reports/quarterly-kpi' },
     ],
   },
-  {
-    key: 'm5', label: '정보 입력', icon: '📝', rolesOnly: STAFF_ROLES,
-    children: [
-      { key: 'm5-1a', label: '업체 등록',     path: '/customers/new' },
-      { key: 'm5-2a', label: '프로젝트 등록', path: '/projects/new' },
-      { key: 'm5-3a', label: '아이템 등록',   path: '/items/new' },
-      { key: 'm5-4a', label: '차종 등록',     path: '/vehicle-models/new' },
-      { key: 'm5-5', label: '외주 시험소 등록', path: '/vendors/registry' },
-    ],
-  },
   { key: 'm4c', label: '사용자 관리', icon: '👤', path: '/users', rolesOnly: ['admin', '팀장', '임원'] },
   { key: 'm10', label: '데이터 내보내기', icon: '📤', path: '/export', rolesOnly: STAFF_ROLES },
 ]

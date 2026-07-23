@@ -53,7 +53,10 @@ export default function VendorList() {
   return (
     <div style={{ padding: 28, maxWidth: 1200, display: 'flex', flexDirection: 'column', height: 'var(--page-fill-h)' }}>
       {/* page header */}
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>외주 시험소 단가표·발주이력·단가비교 관리 (시험소 신규 등록은 기본 정보 &gt; 외주 시험소 등록에서)</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>외주 시험소 등록·단가표·발주이력·단가비교 관리</p>
+        <Button size="sm" onClick={() => setFormId(null)}>+ 시험소 등록</Button>
+      </div>
 
       {/* sub-tabs */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
@@ -95,7 +98,7 @@ export default function VendorList() {
             <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🏭</div>
               <p>등록된 시험소가 없습니다</p>
-              <p style={{ fontSize: 12, marginTop: 6 }}>기본 정보 &gt; 외주 시험소 등록 메뉴에서 먼저 등록하세요</p>
+              <Button style={{ marginTop: 16 }} onClick={() => setFormId(null)}>+ 시험소 등록</Button>
             </div>
           ) : (
             <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0, border: '1px solid var(--border)', borderRadius: 10 }}>
@@ -228,7 +231,7 @@ export default function VendorList() {
       )}
 
       {formId !== undefined && (
-        <VendorForm vendorId={formId} allowedTabs={['단가표', '발주이력']} onClose={() => setFormId(undefined)} onSaved={handleSaved} />
+        <VendorForm vendorId={formId} onClose={() => setFormId(undefined)} onSaved={handleSaved} />
       )}
     </div>
   )

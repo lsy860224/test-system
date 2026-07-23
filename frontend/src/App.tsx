@@ -11,7 +11,6 @@ import CustomerList from '@/pages/customers/CustomerList'
 import ProjectOverview from '@/pages/ProjectOverview'
 import EquipmentList from '@/pages/EquipmentList'
 import VendorList from '@/pages/VendorList'
-import VendorRegistry from '@/pages/VendorRegistry'
 import SOPList from '@/pages/SOPList'
 import GapReport from '@/pages/GapReport'
 import QuarterlyKPI from '@/pages/QuarterlyKPI'
@@ -67,7 +66,6 @@ export default function App() {
           <Route path="projects/new" element={<ProjectCreatePage />} />
           <Route path="equipment" element={<EquipmentList />} />
           <Route path="vendors" element={<VendorList />} />
-          <Route path="vendors/registry" element={<VendorRegistry />} />
           <Route path="sop" element={<SOPList />} />
           <Route path="reports/gap-analysis" element={<GapReport />} />
           <Route path="reports/quarterly-kpi" element={<QuarterlyKPI />} />
