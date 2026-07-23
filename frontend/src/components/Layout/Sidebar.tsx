@@ -33,6 +33,7 @@ const MENU: MenuItem[] = [
       { key: 'm5-1b', label: '업체 리스트',   path: '/customers' },
       { key: 'm5-2b', label: '프로젝트 리스트', path: '/projects' },
       { key: 'm5-3b', label: '아이템 리스트', path: '/items' },
+      { key: 'm5-4b', label: '차종 리스트',   path: '/vehicle-models' },
     ],
   },
   {
@@ -48,6 +49,7 @@ const MENU: MenuItem[] = [
       { key: 'm5-1a', label: '업체 등록',     path: '/customers/new' },
       { key: 'm5-2a', label: '프로젝트 등록', path: '/projects/new' },
       { key: 'm5-3a', label: '아이템 등록',   path: '/items/new' },
+      { key: 'm5-4a', label: '차종 등록',     path: '/vehicle-models/new' },
       { key: 'm5-5', label: '외주 시험소 등록', path: '/vendors/registry' },
     ],
   },

@@ -16,6 +16,7 @@ export const STATUS_COLORS: Record<string, string> = {
   '지연':    '#E53E3E',
   '계획':    '#718096',
   '준비중':  '#D69E2E',
+  'C/O':    '#2B2F82',
   // NCR severity
   'Critical': '#E53E3E',
   'High':     '#D69E2E',

@@ -4,9 +4,8 @@ from typing import Optional
 from dependencies import get_db, require_staff
 from schemas.project import (
     ProjectCreate, ProjectUpdate, ProjectOut, PaginatedProjects, MilestoneCreate, MilestoneOut,
-    StandardItemIds, ProjectStandardNoteOut, ProjectStandardNotesUpdate,
+    ProjectStandardItemOut, StandardItemSelections, CoCandidateOut, ProjectStandardNoteOut, ProjectStandardNotesUpdate,
 )
-from schemas.standard import StandardItemOut
 from services import project_service, schedule_service
 
 router = APIRouter(prefix="/projects", tags=["프로젝트 관리"])
@@ -23,6 +22,14 @@ def list_projects(
     _=Depends(require_staff),
 ):
     return project_service.list_projects(db, page, size, customer_id, status, phase, search)
+
+@router.get("/co-candidates", response_model=list[CoCandidateOut])
+def list_co_candidates(
+    item_id: int, exclude_project_id: Optional[int] = None,
+    db: Session = Depends(get_db), _=Depends(require_staff),
+):
+    """C/O 대상 후보 — 같은 아이템을 쓰는 다른 프로젝트들의 실제 시험 일정 목록."""
+    return project_service.list_co_candidates(db, item_id, exclude_project_id)
 
 @router.post("/", response_model=ProjectOut, status_code=201)
 def create_project(body: ProjectCreate, db: Session = Depends(get_db), current_user=Depends(require_staff)):
@@ -44,13 +51,13 @@ def delete_project(project_id: int, db: Session = Depends(get_db), _=Depends(req
 def add_milestone(project_id: int, body: MilestoneCreate, db: Session = Depends(get_db), _=Depends(require_staff)):
     return project_service.add_milestone(db, project_id, body)
 
-@router.get("/{project_id}/standard-items", response_model=list[StandardItemOut])
+@router.get("/{project_id}/standard-items", response_model=list[ProjectStandardItemOut])
 def get_project_standard_items(project_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):
     return project_service.get_project_standard_items(db, project_id)
 
-@router.put("/{project_id}/standard-items", response_model=list[StandardItemOut])
-def set_project_standard_items(project_id: int, body: StandardItemIds, db: Session = Depends(get_db), _=Depends(require_staff)):
-    return project_service.set_project_standard_items(db, project_id, body.standard_item_ids)
+@router.put("/{project_id}/standard-items", response_model=list[ProjectStandardItemOut])
+def set_project_standard_items(project_id: int, body: StandardItemSelections, db: Session = Depends(get_db), _=Depends(require_staff)):
+    return project_service.set_project_standard_items(db, project_id, [s.model_dump() for s in body.items])
 
 @router.get("/{project_id}/standard-notes", response_model=list[ProjectStandardNoteOut])
 def get_project_standard_notes(project_id: int, db: Session = Depends(get_db), _=Depends(require_staff)):

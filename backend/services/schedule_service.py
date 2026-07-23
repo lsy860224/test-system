@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_, func, select
 from sqlalchemy.orm import Session
 from models.schedule import TestSchedule
-from models.project import Project, project_standard_notes
+from models.project import Project, project_standard_items, project_standard_notes
 from models.standard import StandardItem
 from models.customer import Customer
 from models.item import Item
@@ -12,7 +12,7 @@ from models.ncr import NCRReport
 from schemas.schedule import TestScheduleCreate, TestScheduleUpdate, TestScheduleResultPatch
 from services import pagination_helper
 
-STATUS_KEYS = ["계획", "준비중", "진행중", "완료", "지연", "취소"]
+STATUS_KEYS = ["계획", "준비중", "진행중", "완료", "지연", "취소", "C/O"]
 
 
 def compute_status(schedule: TestSchedule) -> str:
@@ -292,6 +292,26 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
         ).all()
     }
 
+    # C/O(Carry Over) — 항목별 is_carry_over + 근거가 되는 실제 시험 일정(다른 프로젝트) 조회
+    co_rows = db.execute(
+        select(
+            project_standard_items.c.standard_item_id,
+            project_standard_items.c.is_carry_over,
+            project_standard_items.c.co_source_schedule_id,
+        ).where(project_standard_items.c.project_id == project_id)
+    ).all()
+    co_map = {r.standard_item_id: (bool(r.is_carry_over), r.co_source_schedule_id) for r in co_rows}
+    co_schedule_ids = [sid for _, sid in co_map.values() if sid]
+    co_schedule_map: dict[int, tuple[TestSchedule, Project]] = {}
+    if co_schedule_ids:
+        for sched, p in (
+            db.query(TestSchedule, Project)
+            .join(Project, Project.id == TestSchedule.project_id)
+            .filter(TestSchedule.id.in_(co_schedule_ids))
+            .all()
+        ):
+            co_schedule_map[sched.id] = (sched, p)
+
     groups: dict[str, dict] = {}
     counts = {k: 0 for k in STATUS_KEYS}
     for s in std_items:
@@ -310,8 +330,24 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
             "items": [],
         })
 
+        is_co, co_sched_id = co_map.get(s.id, (False, None))
+        co_sched_info = co_schedule_map.get(co_sched_id)
+        co_fields = {
+            "is_carry_over": is_co,
+            "co_vehicle_model": co_sched_info[1].vehicle_model if co_sched_info else None,
+            "co_project_name": co_sched_info[1].name if co_sched_info else None,
+            "co_round_no": co_sched_info[0].round_no if co_sched_info else None,
+            "co_planned_start": co_sched_info[0].planned_start.isoformat() if co_sched_info and co_sched_info[0].planned_start else None,
+            "co_planned_end": co_sched_info[0].planned_end.isoformat() if co_sched_info and co_sched_info[0].planned_end else None,
+            "co_actual_start": co_sched_info[0].actual_start.isoformat() if co_sched_info and co_sched_info[0].actual_start else None,
+            "co_actual_end": co_sched_info[0].actual_end.isoformat() if co_sched_info and co_sched_info[0].actual_end else None,
+            "co_result": co_sched_info[0].result if co_sched_info else None,
+        }
+
         if not schedules:
-            counts["계획"] += 1
+            # 이 프로젝트에 직접 등록된 일정은 없지만, C/O로 다른 프로젝트의 실제 일정을 근거로 대체한 경우 "C/O" 상태로 표시한다.
+            status_key = "C/O" if is_co else "계획"
+            counts[status_key] += 1
             g["items"].append({
                 "standard_item_id": s.id,
                 "standard_code": s.standard_code,
@@ -323,11 +359,12 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
                 "planned_end": None,
                 "actual_start": None,
                 "actual_end": None,
-                "display_status": "계획",
+                "display_status": status_key,
                 "result": None,
                 "data_path": None,
                 "has_ncr": False,
                 "can_retest": False,
+                **co_fields,
             })
             continue
 
@@ -354,6 +391,7 @@ def get_project_schedule_detail(db: Session, project_id: int) -> dict:
                 "data_path": schedule.data_path,
                 "has_ncr": schedule.id in linked_schedule_ids,
                 "can_retest": idx == last_idx and schedule.result == "불합격",
+                **co_fields,
             })
 
     return {

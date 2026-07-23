@@ -136,24 +136,94 @@ def add_milestone(db: Session, project_id: int, body: MilestoneCreate) -> Projec
     return ms
 
 # ── 프로젝트-규격 항목 연동 ────────────────────────────────────
+def list_co_candidates(db: Session, item_id: int, exclude_project_id: int | None = None) -> list[dict]:
+    """C/O 대상 후보 — 같은 아이템(item_id)을 쓰는 다른 프로젝트들의 실제 시험 일정."""
+    q = (
+        db.query(TestSchedule, Project)
+        .join(Project, Project.id == TestSchedule.project_id)
+        .filter(Project.item_id == item_id, Project.vehicle_model.isnot(None), Project.vehicle_model != "")
+    )
+    if exclude_project_id is not None:
+        q = q.filter(Project.id != exclude_project_id)
+    rows = q.order_by(TestSchedule.standard_item_id, TestSchedule.round_no.desc()).all()
+    return [
+        {
+            "schedule_id": s.id,
+            "project_id": p.id,
+            "project_name": p.name,
+            "vehicle_model": p.vehicle_model,
+            "standard_item_id": s.standard_item_id,
+            "round_no": s.round_no,
+            "test_type": s.test_type,
+            "planned_start": s.planned_start,
+            "planned_end": s.planned_end,
+            "actual_start": s.actual_start,
+            "actual_end": s.actual_end,
+            "result": s.result,
+        }
+        for s, p in rows
+    ]
+
 def get_project_standard_items(db: Session, project_id: int) -> list:
     get_project(db, project_id)
-    items = (
-        db.query(StandardItem)
+    rows = (
+        db.query(StandardItem, project_standard_items.c.is_carry_over, project_standard_items.c.co_source_schedule_id)
         .join(project_standard_items, project_standard_items.c.standard_item_id == StandardItem.id)
         .filter(project_standard_items.c.project_id == project_id, StandardItem.is_deleted == False)
         .order_by(StandardItem.standard_code)
         .all()
     )
+    schedule_ids = [sid for _, _, sid in rows if sid]
+    schedule_map: dict[int, tuple[TestSchedule, Project]] = {}
+    if schedule_ids:
+        for s, p in (
+            db.query(TestSchedule, Project)
+            .join(Project, Project.id == TestSchedule.project_id)
+            .filter(TestSchedule.id.in_(schedule_ids))
+            .all()
+        ):
+            schedule_map[s.id] = (s, p)
+
+    items = []
+    for item, is_carry_over, co_source_schedule_id in rows:
+        item.is_carry_over = bool(is_carry_over)
+        item.co_source_schedule_id = co_source_schedule_id
+        sched = schedule_map.get(co_source_schedule_id)
+        if sched:
+            s, p = sched
+            item.co_vehicle_model = p.vehicle_model
+            item.co_project_name = p.name
+            item.co_round_no = s.round_no
+            item.co_planned_start = s.planned_start
+            item.co_planned_end = s.planned_end
+            item.co_actual_start = s.actual_start
+            item.co_actual_end = s.actual_end
+            item.co_result = s.result
+        else:
+            item.co_vehicle_model = None
+            item.co_project_name = None
+            item.co_round_no = None
+            item.co_planned_start = None
+            item.co_planned_end = None
+            item.co_actual_start = None
+            item.co_actual_end = None
+            item.co_result = None
+        items.append(item)
     return standard_service.attach_category_names(db, items)
 
-def set_project_standard_items(db: Session, project_id: int, standard_item_ids: list[int]) -> list:
+def set_project_standard_items(db: Session, project_id: int, selections: list[dict]) -> list:
     get_project(db, project_id)
     db.execute(delete(project_standard_items).where(project_standard_items.c.project_id == project_id))
-    if standard_item_ids:
-        db.execute(insert(project_standard_items).values(
-            [{"project_id": project_id, "standard_item_id": sid} for sid in standard_item_ids]
-        ))
+    if selections:
+        db.execute(insert(project_standard_items).values([
+            {
+                "project_id": project_id,
+                "standard_item_id": s["standard_item_id"],
+                "is_carry_over": s.get("is_carry_over", False),
+                "co_source_schedule_id": s.get("co_source_schedule_id") if s.get("is_carry_over") else None,
+            }
+            for s in selections
+        ]))
     db.commit()
     return get_project_standard_items(db, project_id)
 

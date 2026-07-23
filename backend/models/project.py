@@ -11,6 +11,8 @@ project_standard_items = Table(
     Column("is_required", Boolean, default=True),
     Column("added_at",    DateTime, server_default=func.now()),
     Column("added_by",    Integer, ForeignKey("users.id"), nullable=True),
+    Column("is_carry_over",         Boolean, default=False),    # C/O 여부 — 타 차종 성적서로 대체
+    Column("co_source_schedule_id", Integer, ForeignKey("test_schedules.id", ondelete="SET NULL"), nullable=True),  # C/O 근거가 되는 실제 시험 일정
 )
 
 # 프로젝트 ↔ 규격(standard_no) 단위 비고 — 항목별이 아니라 규격 전체에 대한 적용 조건/비고 1건
@@ -31,6 +33,7 @@ class Project(Base):
     item_id      = Column(Integer, ForeignKey("items.id"), nullable=True)
     name         = Column(String(200), nullable=False)
     project_code = Column(String(50), index=True)       # PRJ-2026-001
+    vehicle_model = Column(String(100), nullable=True)  # 차종 — 규격 항목 C/O 판단 기준(다른 차종 성적서 대체)
     phase        = Column(String(10), default="개발")   # RFQ | 개발 | DV | PV | 양산준비 | 양산
     status       = Column(String(10), default="활성")   # 활성 | 완료 | 보류 | 지연 | 취소
     start_date   = Column(Date, nullable=True)

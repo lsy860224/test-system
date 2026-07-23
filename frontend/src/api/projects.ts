@@ -24,6 +24,43 @@ export interface ProjectItem {
   assignee_id?: number
 }
 
+// 규격 항목 C/O(Carry Over) — 실제 진행 대신 다른 차종의 실제 시험 일정을 참조해서 대체
+export interface ProjectStandardItem extends StandardItem {
+  is_carry_over: boolean
+  co_source_schedule_id?: number | null
+  // co_source_schedule_id가 가리키는 일정의 표시용 스냅샷
+  co_vehicle_model?: string | null
+  co_project_name?: string | null
+  co_round_no?: number | null
+  co_planned_start?: string | null
+  co_planned_end?: string | null
+  co_actual_start?: string | null
+  co_actual_end?: string | null
+  co_result?: string | null
+}
+
+export interface ProjectStandardItemSelection {
+  standard_item_id: number
+  is_carry_over: boolean
+  co_source_schedule_id?: number | null
+}
+
+// C/O 대상 후보 — 같은 아이템을 쓰는 타 프로젝트의 실제 시험 일정
+export interface CoCandidate {
+  schedule_id: number
+  project_id: number
+  project_name: string
+  vehicle_model: string
+  standard_item_id: number
+  round_no: number
+  test_type?: string | null
+  planned_start?: string | null
+  planned_end?: string | null
+  actual_start?: string | null
+  actual_end?: string | null
+  result?: string | null
+}
+
 export const projectsApi = {
   list: (params: { page?: number; size?: number; customer_id?: number; status?: string; phase?: string; search?: string }) =>
     client.get<{ total: number; items: ProjectItem[] }>('/projects/', { params }).then((r) => r.data),
@@ -38,10 +75,18 @@ export const projectsApi = {
   delete: (id: number) => client.delete(`/projects/${id}`),
 
   getStandardItems: (id: number) =>
-    client.get<StandardItem[]>(`/projects/${id}/standard-items`).then((r) => r.data),
+    client.get<ProjectStandardItem[]>(`/projects/${id}/standard-items`).then((r) => r.data),
 
-  setStandardItems: (id: number, standardItemIds: number[]) =>
-    client.put<StandardItem[]>(`/projects/${id}/standard-items`, { standard_item_ids: standardItemIds }).then((r) => r.data),
+  setStandardItems: (id: number, selections: ProjectStandardItemSelection[]) =>
+    client.put<ProjectStandardItem[]>(`/projects/${id}/standard-items`, { items: selections }).then((r) => r.data),
+
+  vehicleModels: () =>
+    client.get<string[]>('/projects/vehicle-models').then((r) => r.data),
+
+  coCandidates: (itemId: number, excludeProjectId?: number) =>
+    client.get<CoCandidate[]>('/projects/co-candidates', {
+      params: excludeProjectId ? { item_id: itemId, exclude_project_id: excludeProjectId } : { item_id: itemId },
+    }).then((r) => r.data),
 
   getStandardNotes: (id: number) =>
     client.get<ProjectStandardNote[]>(`/projects/${id}/standard-notes`).then((r) => r.data),
@@ -69,6 +114,16 @@ export interface ScheduleDetailItem {
   data_path: string | null
   has_ncr: boolean
   can_retest: boolean
+  // C/O(Carry Over) — 이 프로젝트에 자체 일정이 없어도 다른 프로젝트의 실제 일정을 근거로 대체한 경우
+  is_carry_over: boolean
+  co_vehicle_model?: string | null
+  co_project_name?: string | null
+  co_round_no?: number | null
+  co_planned_start?: string | null
+  co_planned_end?: string | null
+  co_actual_start?: string | null
+  co_actual_end?: string | null
+  co_result?: string | null
 }
 
 export interface ScheduleDetailGroup {

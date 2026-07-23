@@ -1,5 +1,6 @@
 import React, { type CSSProperties, useEffect, useState } from 'react'
-import { projectsApi, projectStatusLabel } from '@/api/projects'
+import { projectsApi, projectStatusLabel, type CoCandidate } from '@/api/projects'
+import { vehicleModelsApi, type VehicleModel } from '@/api/vehicleModels'
 import { customersApi, type CustomerListItem } from '@/api/customers'
 import { standardApi, type StandardItem, type StandardCategory } from '@/api/standards'
 import { itemsApi, type Item } from '@/api/items'
@@ -24,7 +25,7 @@ interface Props {
 type Tab = 'info' | 'standards'
 
 const empty = {
-  customer_id: '', item_id: '', name: '', project_code: '',
+  customer_id: '', item_id: '', name: '', project_code: '', vehicle_model: '',
   phase: '개발', status: '활성',
   start_date: '', target_date: '', assignee_id: '', notes: '',
 }
@@ -54,8 +55,14 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
   const [standardCatFilter, setStandardCatFilter] = useState<number | ''>('')
   const [standardLoading, setStandardLoading] = useState(false)
 
+  // C/O(Carry Over) — 항목 id가 키에 있으면 C/O 적용, 값은 근거가 되는 실제 시험 일정(co_source_schedule_id)
+  const [carryOver, setCarryOver] = useState<Map<number, number | null>>(new Map())
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]) // 차종 마스터 — "차종" 드롭다운 소스
+  const [coCandidates, setCoCandidates] = useState<CoCandidate[]>([])    // 같은 아이템을 쓰는 타 프로젝트의 실제 시험 일정 — C/O 대상 후보
+  const [groupCoChoice, setGroupCoChoice] = useState<Map<string, string>>(new Map())
+
   const { confirmOpen, requestClose, confirmDiscard, confirmCancel, markClean } = useUnsavedFormGuard(
-    { form, selectedIds: [...selectedIds].sort(), standardNotes: [...standardNotes.entries()] },
+    { form, selectedIds: [...selectedIds].sort(), standardNotes: [...standardNotes.entries()], carryOver: [...carryOver.entries()].sort() },
     !loading,
   )
   const handleClose = () => requestClose(onClose)
@@ -66,6 +73,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
     usersApi.list().then(setUsers)
     standardApi.categories().then(setAllCategories)
     standardApi.list({ size: 500 }).then((r) => setAllStandards(r.items))
+    vehicleModelsApi.list({ size: 1000 }).then((r) => setVehicleModels(r.items))
   }, [])
 
   useEffect(() => {
@@ -81,6 +89,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         item_id: proj.item_id != null ? String(proj.item_id) : '',
         name: String(proj.name ?? ''),
         project_code: String(proj.project_code ?? ''),
+        vehicle_model: String(proj.vehicle_model ?? ''),
         phase: String(proj.phase ?? '개발'),
         status: String(proj.status ?? '활성'),
         start_date: String(proj.start_date ?? ''),
@@ -88,12 +97,86 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         assignee_id: proj.assignee_id != null ? String(proj.assignee_id) : '',
         notes: String(proj.notes ?? ''),
       })
-      const items = standardItems as StandardItem[]
+      const items = standardItems
       setSelectedIds(new Set(items.map((e) => e.id)))
       setExpandedGroups(new Set(items.map((e) => e.standard_no || '(규격 No. 미입력)')))
       setStandardNotes(new Map(notes.map((n) => [n.standard_no, n.notes ?? ''])))
+      setCarryOver(new Map(items.filter((e) => e.is_carry_over).map((e) => [e.id, e.co_source_schedule_id ?? null])))
     }).finally(() => setLoading(false))
   }, [projectId])
+
+  // C/O 후보 — 같은 아이템(item_id)을 쓰는 다른 프로젝트들의 실제 시험 일정. 아이템이 바뀔 때마다 다시 조회
+  useEffect(() => {
+    if (!form.item_id) { setCoCandidates([]); return }
+    projectsApi.coCandidates(Number(form.item_id), savedProjectId ?? undefined).then(setCoCandidates)
+  }, [form.item_id, savedProjectId])
+
+  // 특정 규격 항목에 대해 참조 가능한 일정 후보 — 자기 자신과 같은 차종은 "C/O"의 의미가 없으므로 제외
+  const candidatesForItem = (standardItemId: number) =>
+    coCandidates.filter((c) => c.standard_item_id === standardItemId && c.vehicle_model !== form.vehicle_model)
+
+  // 완료된 일정을 우선하고, 그중 최신 회차를 기본값으로 추천
+  const pickBestCandidate = (candidates: CoCandidate[]): CoCandidate | undefined => {
+    if (candidates.length === 0) return undefined
+    const completed = candidates.filter((c) => c.actual_end)
+    const pool = completed.length > 0 ? completed : candidates
+    return [...pool].sort((a, b) => b.round_no - a.round_no)[0]
+  }
+
+  const toggleCarryOver = (id: number) => setCarryOver((prev) => {
+    const next = new Map(prev)
+    if (next.has(id)) { next.delete(id); return next }
+    const best = pickBestCandidate(candidatesForItem(id))
+    next.set(id, best ? best.schedule_id : null)
+    return next
+  })
+
+  // 항목별 C/O 선택은 차종만 보여준다 — 구체적인 회차/일정은 pickBestCandidate로 자동 결정(완료 우선, 최신 회차)
+  const vehicleModelForSchedule = (scheduleId: number | null | undefined) =>
+    scheduleId ? coCandidates.find((c) => c.schedule_id === scheduleId)?.vehicle_model ?? '' : ''
+
+  const setCarryOverVehicle = (id: number, model: string) => {
+    const best = pickBestCandidate(candidatesForItem(id).filter((c) => c.vehicle_model === model))
+    setCarryOver((prev) => {
+      const next = new Map(prev)
+      next.set(id, best ? best.schedule_id : null)
+      return next
+    })
+  }
+
+  // 그룹 내 항목들이 참조할 수 있는 차종 목록(자기 차종 제외)
+  const groupVehicleOptions = (items: StandardItem[]) => {
+    const ids = new Set(items.map((it) => it.id))
+    const models = coCandidates.filter((c) => ids.has(c.standard_item_id) && c.vehicle_model !== form.vehicle_model).map((c) => c.vehicle_model)
+    return [...new Set(models)]
+  }
+
+  const applyGroupCarryOver = (stdName: string, items: StandardItem[]) => {
+    const model = groupCoChoice.get(stdName)
+    if (!model) { alert('적용할 차종을 선택하세요.'); return }
+    const matches = items.map((it) => ({ it, best: pickBestCandidate(candidatesForItem(it.id).filter((c) => c.vehicle_model === model)) }))
+    const applicable = matches.filter((m) => m.best)
+    if (applicable.length === 0) { alert(`${model} 차종에 이 규격의 참조 가능한 시험 일정이 없습니다.`); return }
+    setCarryOver((prev) => {
+      const next = new Map(prev)
+      applicable.forEach(({ it, best }) => next.set(it.id, best!.schedule_id))
+      return next
+    })
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      applicable.forEach(({ it }) => next.add(it.id))
+      return next
+    })
+    if (applicable.length < items.length) {
+      alert(`${applicable.length}/${items.length}건에 C/O를 적용했습니다. 나머지는 ${model} 차종에 해당 항목의 시험 일정이 없어 제외됐습니다.`)
+    }
+  }
+
+  const clearGroupCarryOver = (items: StandardItem[]) => setCarryOver((prev) => {
+    const next = new Map(prev)
+    items.forEach((it) => next.delete(it.id))
+    return next
+  })
 
   const handleDelete = async () => {
     if (!projectId) return
@@ -138,6 +221,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
         item_id: form.item_id ? Number(form.item_id) : null,
         name: form.name.trim(),
         project_code: form.project_code || null,
+        vehicle_model: form.vehicle_model || null,
         phase: form.phase,
         status: form.status,
         start_date: form.start_date || null,
@@ -158,7 +242,12 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
       // 규격 항목 연동 + 규격별 비고 저장
       if (pid !== null) {
         setStandardLoading(true)
-        await projectsApi.setStandardItems(pid, [...selectedIds])
+        const selections = [...selectedIds].map((id) => ({
+          standard_item_id: id,
+          is_carry_over: carryOver.has(id),
+          co_source_schedule_id: carryOver.get(id) ?? null,
+        }))
+        await projectsApi.setStandardItems(pid, selections)
         const notesPayload = [...standardNotes.entries()]
           .filter(([, notes]) => notes.trim())
           .map(([standard_no, notes]) => ({ standard_no, notes }))
@@ -239,6 +328,12 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
             <F label="프로젝트 코드">
               <input value={form.project_code} onChange={(e) => set('project_code', e.target.value)} style={inp} placeholder="PRJ-2025-001" />
             </F>
+            <F label="차종">
+              <select value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} style={inp}>
+                <option value="">-- 차종 선택 --</option>
+                {vehicleModels.map((v) => <option key={v.id} value={v.code}>{v.code}{v.name ? ` (${v.name})` : ''}</option>)}
+              </select>
+            </F>
             <F label="아이템" span={2}>
               <select value={form.item_id} onChange={(e) => set('item_id', e.target.value)} style={inp}>
                 <option value="">-- 아이템 선택 --</option>
@@ -301,6 +396,7 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
                 {Object.entries(grouped).map(([stdName, items]) => {
                   const isExpanded = expandedGroups.has(stdName)
                   const selectedCount = items.filter((e) => selectedIds.has(e.id)).length
+                  const coCount = items.filter((e) => carryOver.has(e.id)).length
                   return (
                     <div key={stdName} style={{ marginBottom: 8 }}>
                       <div onClick={() => toggleGroup(stdName)} style={{
@@ -308,7 +404,9 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
                         padding: '8px 10px', background: '#F0F2FF', borderRadius: '6px 6px 0 0',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                       }}>
-                        <span>{isExpanded ? '▾' : '▸'} 📋 {stdName} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({items.length}건{selectedCount > 0 ? `, ${selectedCount}건 선택됨` : ''})</span></span>
+                        <span>{isExpanded ? '▾' : '▸'} 📋 {stdName} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>
+                          ({items.length}건{selectedCount > 0 ? `, ${selectedCount}건 선택됨` : ''}{coCount > 0 ? `, C/O ${coCount}건${coCount === items.length ? ' (전체)' : ' (일부)'}` : ''})
+                        </span></span>
                         <button onClick={(e) => {
                           e.stopPropagation()
                           const allSelected = items.every((it) => selectedIds.has(it.id))
@@ -331,26 +429,90 @@ export default function ProjectForm({ projectId, onClose, onSaved, standalone }:
                             placeholder="이 규격 비고 — 일부 항목만 적용되는 경우 조건을 적어두세요 (예: A타입 커넥터 적용 부품만 해당)"
                             style={{ ...inp, fontSize: 12, padding: '6px 8px', background: 'var(--bg)' }}
                           />
+                          {!form.item_id ? (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                              C/O 대상 일정은 아이템을 먼저 선택해야 표시됩니다 (같은 아이템을 쓰는 다른 프로젝트의 실제 시험 일정만 후보로 나옵니다).
+                            </div>
+                          ) : (() => {
+                            const vOptions = groupVehicleOptions(items)
+                            return vOptions.length === 0 ? (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                                이 규격은 같은 아이템의 다른 프로젝트에 참조 가능한 시험 일정이 없어 C/O를 적용할 수 없습니다.
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>규격 전체 C/O:</span>
+                                <select
+                                  value={groupCoChoice.get(stdName) ?? ''}
+                                  onChange={(e) => setGroupCoChoice((prev) => new Map(prev).set(stdName, e.target.value))}
+                                  style={{ ...inp, fontSize: 12, padding: '4px 6px', width: 'auto', flex: 1 }}
+                                >
+                                  <option value="">-- 대체 차종 선택 --</option>
+                                  {vOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                                <button onClick={() => applyGroupCarryOver(stdName, items)}
+                                  style={{ fontSize: 11, background: 'none', border: '1px solid var(--au-blue)', color: 'var(--au-blue)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  전체 C/O 적용
+                                </button>
+                                {coCount > 0 && (
+                                  <button onClick={() => clearGroupCarryOver(items)}
+                                    style={{ fontSize: 11, background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                    C/O 전체 해제
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       )}
                       {isExpanded && (
                         <div style={{ marginTop: 4 }}>
                           {items.map((item) => {
                             const selected = selectedIds.has(item.id)
+                            const isCo = carryOver.has(item.id)
                             return (
-                              <div key={item.id} onClick={() => toggleStandard(item.id)} style={{
+                              <div key={item.id} style={{
                                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                                borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                                borderRadius: 6, marginBottom: 2,
                                 background: selected ? '#EBF4FF' : 'transparent',
                                 border: `1px solid ${selected ? 'var(--au-blue)' : 'var(--border)'}`,
                               }}>
-                                <input type="checkbox" checked={selected} onChange={() => toggleStandard(item.id)}
-                                  onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} />
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 60, fontFamily: 'monospace' }}>{item.standard_code}</span>
-                                <span style={{ fontSize: 13, flex: 1 }}>{item.name}</span>
-                                {item.category_name && (
-                                  <Badge label={item.category_name} color={item.category_color} />
-                                )}
+                                <div onClick={() => toggleStandard(item.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, cursor: 'pointer' }}>
+                                  <input type="checkbox" checked={selected} onChange={() => toggleStandard(item.id)}
+                                    onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} />
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 60, fontFamily: 'monospace' }}>{item.standard_code}</span>
+                                  <span style={{ fontSize: 13, flex: 1 }}>{item.name}</span>
+                                  {item.category_name && (
+                                    <Badge label={item.category_name} color={item.category_color} />
+                                  )}
+                                </div>
+                                {selected && (() => {
+                                  const itemCandidates = candidatesForItem(item.id)
+                                  return (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={isCo} onChange={() => toggleCarryOver(item.id)} style={{ cursor: 'pointer' }} />
+                                        C/O
+                                      </label>
+                                      {isCo && (
+                                        itemCandidates.length === 0 ? (
+                                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>참조 가능한 일정 없음</span>
+                                        ) : (
+                                          <select
+                                            value={vehicleModelForSchedule(carryOver.get(item.id))}
+                                            onChange={(e) => setCarryOverVehicle(item.id, e.target.value)}
+                                            style={{ ...inp, fontSize: 11, padding: '3px 6px', width: 110 }}
+                                          >
+                                            <option value="">-- 차종 선택 --</option>
+                                            {[...new Set(itemCandidates.map((c) => c.vehicle_model))].map((v) => (
+                                              <option key={v} value={v}>{v}</option>
+                                            ))}
+                                          </select>
+                                        )
+                                      )}
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             )
                           })}

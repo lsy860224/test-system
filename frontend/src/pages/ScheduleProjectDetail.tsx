@@ -13,7 +13,7 @@ interface Props {
   onChanged: () => void
 }
 
-const STATUS_ORDER = ['계획', '준비중', '진행중', '완료', '지연', '취소']
+const STATUS_ORDER = ['계획', '준비중', '진행중', '완료', '지연', '취소', 'C/O']
 
 export default function ScheduleProjectDetail({ projectId, onClose, onChanged }: Props) {
   const [detail, setDetail] = useState<ScheduleDetailResponse | null>(null)
@@ -150,6 +150,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
                 startingId={startingId}
                 onStart={handleStart}
                 onRegisterSchedule={(item) => setScheduleFormState({ scheduleId: null, standardItemId: item.standard_item_id })}
+                onEditSchedule={(item) => setScheduleFormState({ scheduleId: item.schedule_id })}
                 onEndTest={(item) => setResultFormScheduleId(item.schedule_id)}
                 onIssueReport={openIssueReport}
                 onRetest={handleRetest}
@@ -194,7 +195,7 @@ export default function ScheduleProjectDetail({ projectId, onClose, onChanged }:
 }
 
 function StandardGroupCard({
-  group, expanded, onToggle, startingId, onStart, onRegisterSchedule, onEndTest, onIssueReport, onRetest, retestingId,
+  group, expanded, onToggle, startingId, onStart, onRegisterSchedule, onEditSchedule, onEndTest, onIssueReport, onRetest, retestingId,
 }: {
   group: ScheduleDetailGroup
   expanded: boolean
@@ -202,6 +203,7 @@ function StandardGroupCard({
   startingId: number | null
   onStart: (scheduleId: number) => void
   onRegisterSchedule: (item: ScheduleDetailItem) => void
+  onEditSchedule: (item: ScheduleDetailItem) => void
   onEndTest: (item: ScheduleDetailItem) => void
   onIssueReport: (item: ScheduleDetailItem) => void
   onRetest: (scheduleId: number) => void
@@ -249,7 +251,7 @@ function StandardGroupCard({
             {group.items.map((it) => (
               <ItemRow key={it.schedule_id ?? `pending-${it.standard_item_id}`} item={it} starting={startingId === it.schedule_id}
                 retesting={it.schedule_id !== null && retestingId === it.schedule_id}
-                onStart={onStart} onRegisterSchedule={onRegisterSchedule} onEndTest={onEndTest} onIssueReport={onIssueReport} onRetest={onRetest} />
+                onStart={onStart} onRegisterSchedule={onRegisterSchedule} onEditSchedule={onEditSchedule} onEndTest={onEndTest} onIssueReport={onIssueReport} onRetest={onRetest} />
             ))}
           </tbody>
         </table>
@@ -259,38 +261,50 @@ function StandardGroupCard({
 }
 
 function ItemRow({
-  item, starting, retesting, onStart, onRegisterSchedule, onEndTest, onIssueReport, onRetest,
+  item, starting, retesting, onStart, onRegisterSchedule, onEditSchedule, onEndTest, onIssueReport, onRetest,
 }: {
   item: ScheduleDetailItem
   starting: boolean
   retesting: boolean
   onStart: (scheduleId: number) => void
   onRegisterSchedule: (item: ScheduleDetailItem) => void
+  onEditSchedule: (item: ScheduleDetailItem) => void
   onEndTest: (item: ScheduleDetailItem) => void
   onIssueReport: (item: ScheduleDetailItem) => void
   onRetest: (scheduleId: number) => void
 }) {
   const endedEarly = !!(item.actual_end && item.planned_end && item.actual_end < item.planned_end)
   const canIssueReport = item.result === '불합격' && !item.has_ncr
+  // 자체 일정이 없고 C/O로 대체된 경우, 시작/종료·결과는 근거가 되는 다른 프로젝트의 실제 일정 값을 대신 보여준다
+  const isCoOnly = item.schedule_id === null && item.is_carry_over
+  const shownResult = isCoOnly ? item.co_result : item.result
 
   return (
     <tr style={{ borderTop: '1px solid var(--border)' }}>
       <Td>{item.standard_code}</Td>
       <Td>{item.name}</Td>
       <Td>
-        <DateCell planned={item.planned_start} actual={item.actual_start} />
+        <DateCell planned={isCoOnly ? (item.co_planned_start ?? null) : item.planned_start} actual={isCoOnly ? (item.co_actual_start ?? null) : item.actual_start} />
       </Td>
       <Td>
-        <DateCell planned={item.planned_end} actual={item.actual_end} actualColor={endedEarly ? '#E53E3E' : undefined} />
+        <DateCell planned={isCoOnly ? (item.co_planned_end ?? null) : item.planned_end} actual={isCoOnly ? (item.co_actual_end ?? null) : item.actual_end} actualColor={endedEarly ? '#E53E3E' : undefined} />
       </Td>
       <Td><Badge label={item.display_status} /></Td>
-      <Td>{item.result ? <Badge label={item.result} /> : <span style={{ color: 'var(--text-muted)' }}>-</span>}</Td>
+      <Td>{shownResult ? <Badge label={shownResult} /> : <span style={{ color: 'var(--text-muted)' }}>-</span>}</Td>
       <Td>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
           {item.schedule_id === null ? (
-            <ActionBtn onClick={() => onRegisterSchedule(item)}>일정 등록</ActionBtn>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              {item.is_carry_over && (
+                <span style={{ fontSize: 10, color: 'var(--au-indigo)', textAlign: 'right' }}>
+                  C/O: {item.co_vehicle_model ?? '?'} · {item.co_project_name ?? '참조 일정 없음'}{item.co_round_no ? ` (${item.co_round_no}회차)` : ''}
+                </span>
+              )}
+              <ActionBtn onClick={() => onRegisterSchedule(item)}>일정 등록</ActionBtn>
+            </div>
           ) : (
             <>
+              <ActionBtn onClick={() => onEditSchedule(item)}>일정 수정</ActionBtn>
               {(item.display_status === '준비중' || item.display_status === '지연') && (
                 <ActionBtn onClick={() => onStart(item.schedule_id!)} loading={starting}>시험 시작</ActionBtn>
               )}

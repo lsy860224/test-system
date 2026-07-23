@@ -18,6 +18,8 @@ import QuarterlyKPI from '@/pages/QuarterlyKPI'
 import DataExport from '@/pages/DataExport'
 import ItemList from '@/pages/ItemList'
 import ItemCreatePage from '@/pages/ItemCreatePage'
+import VehicleModelList from '@/pages/VehicleModelList'
+import VehicleModelCreatePage from '@/pages/VehicleModelCreatePage'
 import WorkAssignment from '@/pages/WorkAssignment'
 import ProjectCreatePage from '@/pages/ProjectCreatePage'
 import CustomerCreatePage from '@/pages/customers/CustomerCreatePage'
@@ -58,6 +60,8 @@ export default function App() {
           <Route path="customers/new" element={<CustomerCreatePage />} />
           <Route path="items" element={<ItemList />} />
           <Route path="items/new" element={<ItemCreatePage />} />
+          <Route path="vehicle-models" element={<VehicleModelList />} />
+          <Route path="vehicle-models/new" element={<VehicleModelCreatePage />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="projects" element={<ProjectOverview />} />
           <Route path="projects/new" element={<ProjectCreatePage />} />

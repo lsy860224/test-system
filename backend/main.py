@@ -5,7 +5,7 @@ import os
 
 from config import settings
 from database import init_db, SessionLocal
-from routers import auth, customers, standards, ncr, dashboard, projects, schedules, equipment, vendors, sop, reports, export, items, users, todos, notifications, single_test
+from routers import auth, customers, standards, ncr, dashboard, projects, schedules, equipment, vendors, sop, reports, export, items, users, todos, notifications, single_test, vehicle_models
 
 DEFAULT_SECRET_KEY = "au-inc-secret-key-change-in-production-2026"
 
@@ -62,6 +62,7 @@ app.include_router(users.router)
 app.include_router(todos.router)
 app.include_router(notifications.router)
 app.include_router(single_test.router)
+app.include_router(vehicle_models.router)
 
 os.makedirs(settings.upload_dir, exist_ok=True)
 

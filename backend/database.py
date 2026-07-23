@@ -12,7 +12,7 @@ class Base(DeclarativeBase):
     pass
 
 def init_db():
-    from models import user, customer, standard, ncr, project, schedule, equipment, vendor, sop, item, notification, single_test  # noqa
+    from models import user, customer, standard, ncr, project, schedule, equipment, vendor, sop, item, notification, single_test, vehicle_model  # noqa
     Base.metadata.create_all(bind=engine)
     _migrate_db()
 
@@ -86,6 +86,13 @@ def _migrate_db():
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_deadline_dedup ON notifications(user_id, related_type, related_id) WHERE related_type LIKE 'project_deadline_%'",
         # users: 비밀번호 변경 시 이전에 발급된 JWT를 무효화하기 위한 버전 카운터 (2026-07-14)
         "ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0",
+        # projects: 차종 필드 + 규격 항목 C/O(Carry Over, 타 차종 성적서 대체) 지원 (2026-07-21)
+        "ALTER TABLE projects ADD COLUMN vehicle_model VARCHAR(100)",
+        "ALTER TABLE project_standard_items ADD COLUMN is_carry_over BOOLEAN DEFAULT 0",
+        # C/O 근거를 차종 문자열이 아니라 실제 시험 일정(test_schedules) 참조로 저장하도록 설계 변경 —
+        # co_vehicle_model은 운영 미배포 상태에서 co_source_schedule_id로 대체됨 (2026-07-21)
+        "ALTER TABLE project_standard_items DROP COLUMN co_vehicle_model",
+        "ALTER TABLE project_standard_items ADD COLUMN co_source_schedule_id INTEGER REFERENCES test_schedules(id)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
